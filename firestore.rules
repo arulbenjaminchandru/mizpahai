@@ -1,0 +1,126 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ──────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.admin == true
+      );
+    }
+
+    function isStudentActive() {
+      return isSignedIn() &&
+        (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != 'suspended');
+    }
+
+    // Check if the current user is enrolled in the given course
+    function isEnrolled(courseId) {
+      return isSignedIn() && isStudentActive() && (
+        isAdmin() ||
+        exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + courseId))
+      );
+    }
+
+    // ─── Collection: users ─────────────────────────────────────────────────
+    match /users/{userId} {
+      // Users can read and update their own document, admins can read and write any user
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.role == 'student';
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Collection: courses ───────────────────────────────────────────────
+    match /courses/{courseId} {
+      // Anyone signed in can read published courses; admins can read/write all
+      allow read: if isSignedIn() && (resource.data.isPublished == true || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: weeks ─────────────────────────────────────────────────
+    match /weeks/{weekId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
+      );
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: modules ───────────────────────────────────────────────
+    match /modules/{moduleId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
+      );
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: lessons ───────────────────────────────────────────────
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
+      );
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: resources ─────────────────────────────────────────────
+    match /resources/{resourceId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        isEnrolled(resource.data.courseId)
+      );
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: enrollmentCodes ───────────────────────────────────────
+    // Critical: Enrollment codes are NEVER readable or writable directly by clients.
+    // Redemption MUST go through the server-side API endpoint using Firebase Admin SDK!
+    match /enrollmentCodes/{codeId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Collection: enrollments ───────────────────────────────────────────
+    match /enrollments/{enrollmentId} {
+      // Students can read their own enrollments. Only admins can create/update directly.
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: lessonProgress ────────────────────────────────────────
+    match /lessonProgress/{progressId} {
+      // Students can read and record their own lesson completion
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create, update: if isSignedIn() && isStudentActive() && (
+        request.resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── Deny All Other Unmatched Paths ────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

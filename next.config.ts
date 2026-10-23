@@ -1,16 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
+  serverExternalPackages: ["firebase-admin"],
+  typescript: {
+    // We run strict type-checking separately via npx tsc --noEmit
+    ignoreBuildErrors: false,
   },
 };
 
