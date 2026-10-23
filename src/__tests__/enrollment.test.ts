@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "./test-runner";
 
 describe("Enrollment Code Policy & Business Logic", () => {
   it("detects expired codes correctly", () => {
