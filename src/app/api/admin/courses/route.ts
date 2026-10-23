@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getAdminDb();
-    const snapshot = await db.collection("courses").orderBy("createdAt", "desc").get();
+    let snapshot;
+    try {
+      snapshot = await db.collection("courses").orderBy("createdAt", "desc").get();
+    } catch {
+      snapshot = await db.collection("courses").get();
+    }
     const courses = snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),

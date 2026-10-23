@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-context";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,16 +42,44 @@ export default function AdminOverviewPage() {
     async function fetchMetrics() {
       if (!user) return;
       try {
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         const res = await fetch("/api/admin/metrics", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
           setMetrics(data);
+          return;
         }
+        // Client fallback
+        const [usersSnap, coursesSnap, lessonsSnap] = await Promise.all([
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "courses")),
+          getDocs(collection(db, "lessons")),
+        ]);
+        setMetrics((prev) => ({
+          ...prev,
+          totalStudents: usersSnap.size,
+          totalCourses: coursesSnap.size,
+          totalLessons: lessonsSnap.size,
+        }));
       } catch (err) {
         console.error("Error fetching metrics:", err);
+        try {
+          const [usersSnap, coursesSnap, lessonsSnap] = await Promise.all([
+            getDocs(collection(db, "users")),
+            getDocs(collection(db, "courses")),
+            getDocs(collection(db, "lessons")),
+          ]);
+          setMetrics((prev) => ({
+            ...prev,
+            totalStudents: usersSnap.size,
+            totalCourses: coursesSnap.size,
+            totalLessons: lessonsSnap.size,
+          }));
+        } catch (clientErr) {
+          console.error("Client metrics fallback failed:", clientErr);
+        }
       } finally {
         setLoading(false);
       }

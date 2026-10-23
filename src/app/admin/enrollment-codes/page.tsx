@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 import {
   KeyRound,
   Plus,
@@ -61,7 +63,7 @@ export default function AdminEnrollmentCodesPage() {
   const fetchCodes = async () => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/enrollment-codes", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -79,16 +81,36 @@ export default function AdminEnrollmentCodesPage() {
   const fetchCourses = async () => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/courses", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setCourses(data.courses || []);
+        if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+          setCourses(data.courses);
+          return;
+        }
       }
+      // Direct Firestore fallback
+      const snap = await getDocs(collection(db, "courses"));
+      const fallbackList = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Course[];
+      setCourses(fallbackList);
     } catch (err) {
       console.error("Error fetching courses:", err);
+      try {
+        const snap = await getDocs(collection(db, "courses"));
+        const fallbackList = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Course[];
+        setCourses(fallbackList);
+      } catch (clientErr) {
+        console.error("Direct Firestore load failed:", clientErr);
+      }
     }
   };
 

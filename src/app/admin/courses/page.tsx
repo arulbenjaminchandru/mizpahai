@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 import {
   BookOpen,
   Plus,
@@ -57,16 +59,37 @@ export default function AdminCoursesPage() {
   const fetchCourses = async () => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      // Force token refresh so custom claims (e.g. admin role) are always fresh
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/courses", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setCourses(data.courses || []);
+        if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+          setCourses(data.courses);
+          return;
+        }
       }
+      // Fallback: Read directly via Firestore client SDK (same method as student dashboard)
+      const snap = await getDocs(collection(db, "courses"));
+      const fallbackList = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Course[];
+      setCourses(fallbackList);
     } catch (err) {
-      console.error("Error fetching courses:", err);
+      console.warn("API fetch failed, falling back to direct Firestore:", err);
+      try {
+        const snap = await getDocs(collection(db, "courses"));
+        const fallbackList = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Course[];
+        setCourses(fallbackList);
+      } catch (clientErr) {
+        console.error("Direct Firestore load failed:", clientErr);
+      }
     } finally {
       setLoading(false);
     }

@@ -26,7 +26,15 @@ export function getAdminApp(): App {
   let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
 
   if (privateKey) {
-    // Unescape newlines if present
+    // Strip wrapping double or single quotes if pasted in Vercel UI
+    privateKey = privateKey.trim();
+    if (
+      (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+      (privateKey.startsWith("'") && privateKey.endsWith("'"))
+    ) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    // Unescape literal \n into real newlines
     privateKey = privateKey.replace(/\\n/g, "\n");
   }
 

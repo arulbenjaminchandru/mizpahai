@@ -40,7 +40,7 @@ export default function AdminStudentsPage() {
   const fetchStudents = async () => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const url = searchQuery
         ? `/api/admin/students?search=${encodeURIComponent(searchQuery)}`
         : "/api/admin/students";
@@ -62,7 +62,7 @@ export default function AdminStudentsPage() {
   const fetchCourses = async () => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/courses", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -94,7 +94,7 @@ export default function AdminStudentsPage() {
     if (!confirm(confirmMsg)) return;
 
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/students", {
         method: "PUT",
         headers: {
@@ -122,7 +122,7 @@ export default function AdminStudentsPage() {
 
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const course = courses.find((c) => c.id === selectedCourseId);
       const res = await fetch("/api/admin/students", {
         method: "POST",
