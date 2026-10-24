@@ -1,12 +1,12 @@
 # TiBen AI Academy — Comprehensive Quality Assurance & Scalability Audit
 
-**Execution Date:** 2026-10-24T15:07:13.365Z  
+**Execution Date:** 2026-10-24T17:18:49.233Z  
 **Platform Version:** 1.0.0 (Production Candidate)  
 **Total Test Cases:** 66  
 **Passed:** 66  
 **Failed:** 0  
 **Success Rate:** 100.0%  
-**Execution Runtime:** 10ms  
+**Execution Runtime:** 11ms  
 **Audit Purpose:** Pre-launch Brand Reputation & Zero-Gap Quality Verification (Target Cohort: Nov 2026 – Apr 2027)
 
 ---
@@ -50,7 +50,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | rejects passwords missing uppercase letters | 0ms |
 | ✅ PASS | rejects passwords missing lowercase letters | 0ms |
 | ✅ PASS | rejects passwords missing numerical digits | 0ms |
-| ✅ PASS | rejects passwords shorter than 8 characters | 0ms |
+| ✅ PASS | rejects passwords shorter than 8 characters | 1ms |
 | ✅ PASS | validates standard and plus-addressed email formats | 0ms |
 | ✅ PASS | rejects malformed email formats | 0ms |
 | ✅ PASS | enforces strict admin vs student role permissions | 0ms |
@@ -61,13 +61,13 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | extracts 11-char ID from standard watch URL | 0ms |
+| ✅ PASS | extracts 11-char ID from standard watch URL | 1ms |
 | ✅ PASS | extracts 11-char ID from watch URL with tracking params | 0ms |
 | ✅ PASS | extracts 11-char ID from short youtu.be URL | 0ms |
 | ✅ PASS | extracts 11-char ID from embed URL | 0ms |
-| ✅ PASS | extracts 11-char ID from live broadcast URL | 1ms |
+| ✅ PASS | extracts 11-char ID from live broadcast URL | 0ms |
 | ✅ PASS | extracts 11-char ID from mobile m.youtube.com URL | 0ms |
-| ✅ PASS | accepts clean 11-character video ID directly | 0ms |
+| ✅ PASS | accepts clean 11-character video ID directly | 1ms |
 | ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 0ms |
 | ✅ PASS | rejects non-YouTube video hosting platforms | 0ms |
 | ✅ PASS | rejects XSS and malicious script payloads | 0ms |
@@ -100,10 +100,10 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 2ms |
+| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 1ms |
 | ✅ PASS | activates an active enrollment code successfully | 0ms |
 | ✅ PASS | rejects revoked enrollment codes | 0ms |
-| ✅ PASS | rejects expired enrollment codes by timestamp | 0ms |
+| ✅ PASS | rejects expired enrollment codes by timestamp | 1ms |
 | ✅ PASS | enforces single-seat exhaustion transition (1 of 1 -> expired) | 0ms |
 | ✅ PASS | enforces multi-seat cohort capacity (e.g. 25 of 25 -> exhausted) | 0ms |
 | ✅ PASS | prevents replay attacks: same student cannot redeem code twice | 0ms |
@@ -147,7 +147,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | verifies course 'wabsZePQuyvq2RmdwTv3' configuration | 0ms |
+| ✅ PASS | verifies course 'wabsZePQuyvq2RmdwTv3' configuration | 1ms |
 | ✅ PASS | verifies complete 11-week curriculum coverage | 0ms |
 | ✅ PASS | verifies all 22 live video lessons possess valid YouTube IDs | 0ms |
 | ✅ PASS | verifies student enrollment indexing is active | 0ms |

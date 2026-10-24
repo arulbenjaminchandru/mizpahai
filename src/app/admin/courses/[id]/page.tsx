@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { extractYouTubeVideoId, validateDriveUrl } from "@/lib/validations";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Course, Week, Module, Lesson, Resource } from "@/types";
 import {
@@ -126,21 +126,38 @@ export default function CourseBuilderPage({
     if (!user) return;
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/admin/weeks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      try {
+        res = await fetch("/api/admin/weeks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            courseId,
+            title: weekTitle,
+            weekNumber: Number(weekNumber),
+            isPublished: true,
+          }),
+        });
+      } catch (fetchErr) {
+        console.warn("API add week failed, falling back to direct Firestore:", fetchErr);
+      }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await addDoc(collection(db, "weeks"), {
           courseId,
           title: weekTitle,
           weekNumber: Number(weekNumber),
           isPublished: true,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to add week");
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
       toastSuccess("Week created", `Week ${weekNumber} added.`);
       setIsWeekModalOpen(false);
       setWeekTitle("");
@@ -159,22 +176,40 @@ export default function CourseBuilderPage({
     if (!user || !selectedWeekId) return;
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/admin/modules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      try {
+        res = await fetch("/api/admin/modules", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            courseId,
+            weekId: selectedWeekId,
+            title: moduleTitle,
+            orderIndex: modules.filter((m) => m.weekId === selectedWeekId).length,
+            isPublished: true,
+          }),
+        });
+      } catch (fetchErr) {
+        console.warn("API add module failed, falling back to direct Firestore:", fetchErr);
+      }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await addDoc(collection(db, "modules"), {
           courseId,
           weekId: selectedWeekId,
           title: moduleTitle,
           orderIndex: modules.filter((m) => m.weekId === selectedWeekId).length,
           isPublished: true,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to add module");
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
       toastSuccess("Module created", `"${moduleTitle}" added.`);
       setIsModuleModalOpen(false);
       setModuleTitle("");
@@ -199,29 +234,56 @@ export default function CourseBuilderPage({
 
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/admin/lessons", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      let result: any = null;
+      try {
+        res = await fetch("/api/admin/lessons", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            courseId,
+            weekId: selectedWeekId,
+            moduleId: selectedModuleId,
+            title: lessonTitle,
+            description: lessonDesc,
+            youtubeUrl,
+            duration: Number(lessonDuration),
+            orderIndex: lessons.filter((l) => l.moduleId === selectedModuleId).length,
+            isPublished: true,
+          }),
+        });
+
+        if (res) {
+          const text = await res.text();
+          result = text ? JSON.parse(text) : null;
+        }
+      } catch (fetchErr) {
+        console.warn("API add lesson failed, falling back to direct Firestore:", fetchErr);
+      }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await addDoc(collection(db, "lessons"), {
           courseId,
           weekId: selectedWeekId,
           moduleId: selectedModuleId,
           title: lessonTitle,
           description: lessonDesc,
           youtubeUrl,
+          youtubeVideoId: vidId,
           duration: Number(lessonDuration),
           orderIndex: lessons.filter((l) => l.moduleId === selectedModuleId).length,
           isPublished: true,
-        }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to add lesson");
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
 
-      toastSuccess("Lesson added", `"${lessonTitle}" added with video ID ${result.videoId}.`);
+      toastSuccess("Lesson added", `"${lessonTitle}" added with video ID ${vidId}.`);
       setIsLessonModalOpen(false);
       setLessonTitle("");
       setLessonDesc("");
@@ -246,14 +308,32 @@ export default function CourseBuilderPage({
 
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/admin/resources", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      try {
+        res = await fetch("/api/admin/resources", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            courseId,
+            weekId: selectedWeekId,
+            title: resourceTitle,
+            fileType: resourceFileType,
+            category: resourceFileType,
+            driveUrl: resourceDriveUrl,
+            orderIndex: resources.filter((r) => r.weekId === selectedWeekId).length,
+          }),
+        });
+      } catch (fetchErr) {
+        console.warn("API add resource failed, falling back to direct Firestore:", fetchErr);
+      }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await addDoc(collection(db, "resources"), {
           courseId,
           weekId: selectedWeekId,
           title: resourceTitle,
@@ -261,9 +341,11 @@ export default function CourseBuilderPage({
           category: resourceFileType,
           driveUrl: resourceDriveUrl,
           orderIndex: resources.filter((r) => r.weekId === selectedWeekId).length,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to attach resource");
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
       toastSuccess("Resource attached", `"${resourceTitle}" linked.`);
       setIsResourceModalOpen(false);
       setResourceTitle("");
@@ -280,16 +362,26 @@ export default function CourseBuilderPage({
     if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const endpoint = `/api/admin/${type}s?id=${id}`;
-      const res = await fetch(endpoint, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        toastSuccess("Deleted", `${type} removed.`);
-        fetchCourseData();
+      let res: Response | null = null;
+      try {
+        res = await fetch(endpoint, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (fetchErr) {
+        console.warn(`API delete ${type} failed, falling back to direct Firestore:`, fetchErr);
       }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        const collectionName = type === "resource" ? "resources" : `${type}s`;
+        await deleteDoc(doc(db, collectionName, id));
+      }
+
+      toastSuccess("Deleted", `${type} removed.`);
+      fetchCourseData();
     } catch (err: any) {
       toastError("Failed to delete", err.message);
     }

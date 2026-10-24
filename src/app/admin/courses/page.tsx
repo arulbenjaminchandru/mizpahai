@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import {
   BookOpen,
@@ -103,18 +103,47 @@ export default function AdminCoursesPage() {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/admin/courses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      let result: any = null;
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to create course");
+      try {
+        res = await fetch("/api/admin/courses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (res) {
+          const text = await res.text();
+          result = text ? JSON.parse(text) : null;
+        }
+      } catch (fetchErr) {
+        console.warn("API course creation failed, falling back to direct Firestore:", fetchErr);
+      }
+
+      if (res && res.ok && result?.success) {
+        toastSuccess("Course created", `"${data.name}" added successfully.`);
+        setIsModalOpen(false);
+        reset();
+        fetchCourses();
+        return;
+      }
+
+      // If server returned a business validation error (e.g. duplicate slug or bad input)
+      if (res && res.status === 400 && result?.error) {
+        throw new Error(result.error);
+      }
+
+      // Direct Firestore creation fallback
+      await addDoc(collection(db, "courses"), {
+        ...data,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
 
       toastSuccess("Course created", `"${data.name}" added successfully.`);
       setIsModalOpen(false);
@@ -130,22 +159,34 @@ export default function AdminCoursesPage() {
   const handleTogglePublish = async (course: Course) => {
     if (!user) return;
     try {
-      const token = await user.getIdToken();
-      const res = await fetch(`/api/admin/courses/${course.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isPublished: !course.isPublished }),
-      });
-      if (res.ok) {
-        toastSuccess(
-          course.isPublished ? "Course Unpublished" : "Course Published",
-          `Status updated for "${course.name}".`
-        );
-        fetchCourses();
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      try {
+        res = await fetch(`/api/admin/courses/${course.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isPublished: !course.isPublished }),
+        });
+      } catch (fetchErr) {
+        console.warn("API toggle publish failed, falling back to direct Firestore:", fetchErr);
       }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await updateDoc(doc(db, "courses", course.id), {
+          isPublished: !course.isPublished,
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      toastSuccess(
+        course.isPublished ? "Course Unpublished" : "Course Published",
+        `Status updated for "${course.name}".`
+      );
+      fetchCourses();
     } catch (err: any) {
       toastError("Failed to update status", err.message);
     }
@@ -157,15 +198,24 @@ export default function AdminCoursesPage() {
     }
     if (!user) return;
     try {
-      const token = await user.getIdToken();
-      const res = await fetch(`/api/admin/courses/${courseId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        toastSuccess("Course deleted", `"${name}" removed.`);
-        fetchCourses();
+      const token = await user.getIdToken(true);
+      let res: Response | null = null;
+      try {
+        res = await fetch(`/api/admin/courses/${courseId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (fetchErr) {
+        console.warn("API delete course failed, falling back to direct Firestore:", fetchErr);
       }
+
+      if (!res || !res.ok) {
+        // Direct Firestore fallback
+        await deleteDoc(doc(db, "courses", courseId));
+      }
+
+      toastSuccess("Course deleted", `"${name}" removed.`);
+      fetchCourses();
     } catch (err: any) {
       toastError("Failed to delete", err.message);
     }

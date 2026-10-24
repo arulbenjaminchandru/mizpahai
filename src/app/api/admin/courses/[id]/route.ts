@@ -7,13 +7,13 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await requireAdmin(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
-  const { id } = await params;
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await params;
     const db = getAdminDb();
     const doc = await db.collection("courses").doc(id).get();
     if (!doc.exists) {
@@ -29,13 +29,13 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await requireAdmin(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
-  const { id } = await params;
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await params;
     const body = await req.json();
     const db = getAdminDb();
 
@@ -54,13 +54,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await requireAdmin(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
-  const { id } = await params;
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await params;
     const db = getAdminDb();
     await db.collection("courses").doc(id).delete();
     return NextResponse.json({ success: true, message: "Course deleted" });

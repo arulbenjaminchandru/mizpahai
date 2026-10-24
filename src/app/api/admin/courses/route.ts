@@ -5,12 +5,12 @@ import { courseSchema } from "@/lib/validations";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const db = getAdminDb();
     let snapshot;
     try {
@@ -30,12 +30,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
   try {
+    const admin = await requireAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const body = await req.json();
     const validated = courseSchema.parse(body);
 
