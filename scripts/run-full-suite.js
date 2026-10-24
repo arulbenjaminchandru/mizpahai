@@ -263,14 +263,14 @@ describe("1. Authentication, Passwords & RBAC Engine", () => {
     expect(canAccess(suspendedStudent)).toBe(false);
   });
 
-  it("handles popup-blocked event by triggering automatic redirect fallback", () => {
+  it("handles popup dismissal and double-clicks gracefully without crashing", () => {
     const resolveAuthAction = (errorCode) => {
-      if (errorCode === "auth/popup-blocked") return "REDIRECT_FALLBACK";
-      if (errorCode === "auth/popup-closed-by-user") return "SILENT_ABORT";
+      if (errorCode === "auth/popup-closed-by-user" || errorCode === "auth/cancelled-popup-request") return "SILENT_ABORT";
       return "SHOW_ERROR";
     };
-    expect(resolveAuthAction("auth/popup-blocked")).toBe("REDIRECT_FALLBACK");
     expect(resolveAuthAction("auth/popup-closed-by-user")).toBe("SILENT_ABORT");
+    expect(resolveAuthAction("auth/cancelled-popup-request")).toBe("SILENT_ABORT");
+    expect(resolveAuthAction("auth/unauthorized-domain")).toBe("SHOW_ERROR");
   });
 });
 

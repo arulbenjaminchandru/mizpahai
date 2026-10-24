@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -21,7 +21,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/dashboard";
 
-  const { signInWithEmail, signInWithGoogle, user, isAdmin } = useAuth();
+  const { signInWithEmail, signInWithGoogle, user, loading, isAdmin } = useAuth();
   const { error: toastError, success: toastSuccess } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +36,13 @@ function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  // If already logged in, redirect
-  if (user) {
-    router.push(isAdmin ? "/admin" : redirectUrl);
-    return null;
-  }
+  // If already logged in, redirect via useEffect (prevent render-phase navigation)
+  useEffect(() => {
+    if (user && !loading) {
+      const destination = searchParams.get("redirect") || (isAdmin ? "/admin" : "/dashboard");
+      router.push(destination);
+    }
+  }, [user, loading, isAdmin, searchParams, router]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -49,7 +51,8 @@ function LoginForm() {
     try {
       await signInWithEmail(data.email, data.password);
       toastSuccess("Welcome back!", "Successfully signed in.");
-      router.push(redirectUrl);
+      const destination = searchParams.get("redirect") || (isAdmin ? "/admin" : "/dashboard");
+      router.push(destination);
     } catch (err: any) {
       console.error("Sign in error:", err);
       let message = "Invalid email or password.";
@@ -72,12 +75,15 @@ function LoginForm() {
     setAuthError(null);
 
     try {
-      await signInWithGoogle();
-      toastSuccess("Welcome!", "Signed in with Google.");
-      router.push(redirectUrl);
+      const signedInUser = await signInWithGoogle();
+      if (signedInUser) {
+        toastSuccess("Welcome!", "Signed in with Google.");
+        const destination = searchParams.get("redirect") || (isAdmin ? "/admin" : "/dashboard");
+        router.push(destination);
+      }
     } catch (err: any) {
       console.error("Google sign in error:", err);
-      if (err.code === "auth/popup-closed-by-user") {
+      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
         return;
       }
       let message = "Could not sign in with Google. Please try again.";
@@ -94,6 +100,17 @@ function LoginForm() {
       setIsGoogleLoading(false);
     }
   };
+
+  if (loading || user) {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">

@@ -11,8 +11,6 @@ import {
 import {
   onAuthStateChanged,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -37,7 +35,7 @@ interface AuthContextValue {
   /** Whether the authenticated user has the admin role. */
   isAdmin: boolean;
   /** Sign in with Google popup. */
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<FirebaseUser>;
   /** Sign in with email and password. */
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Create a new account with email, password, and display name. */
@@ -104,17 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen to auth state changes
   useEffect(() => {
-    // Process redirect result if coming back from signInWithRedirect
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result?.user) {
-          await fetchUserData(result.user);
-        }
-      })
-      .catch((err) => {
-        console.warn("Redirect result handler:", err);
-      });
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
@@ -134,20 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Auth actions ─────────────────────────────────────────────────────────
 
   const signInWithGoogle = useCallback(async () => {
-    let firebaseUser: FirebaseUser | null = null;
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      firebaseUser = result.user;
-    } catch (popupErr: any) {
-      if (popupErr?.code === "auth/popup-blocked") {
-        console.warn("Popup blocked by browser, falling back to signInWithRedirect...");
-        await signInWithRedirect(auth, googleProvider);
-        return;
-      }
-      throw popupErr;
-    }
-
-    if (!firebaseUser) return;
+    const result = await signInWithPopup(auth, googleProvider);
+    const firebaseUser = result.user;
 
     // Create or sync Firestore profile
     try {
@@ -172,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await fetchUserData(firebaseUser);
+    return firebaseUser;
   }, [fetchUserData]);
 
   const signInWithEmail = useCallback(

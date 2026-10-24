@@ -1,12 +1,12 @@
 # TiBen AI Academy — Comprehensive Quality Assurance & Scalability Audit
 
-**Execution Date:** 2026-10-24T14:35:54.778Z  
+**Execution Date:** 2026-10-24T15:07:13.365Z  
 **Platform Version:** 1.0.0 (Production Candidate)  
 **Total Test Cases:** 66  
 **Passed:** 66  
 **Failed:** 0  
 **Success Rate:** 100.0%  
-**Execution Runtime:** 9ms  
+**Execution Runtime:** 10ms  
 **Audit Purpose:** Pre-launch Brand Reputation & Zero-Gap Quality Verification (Target Cohort: Nov 2026 – Apr 2027)
 
 ---
@@ -55,7 +55,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | rejects malformed email formats | 0ms |
 | ✅ PASS | enforces strict admin vs student role permissions | 0ms |
 | ✅ PASS | blocks suspended users and verifies routing to sign out | 0ms |
-| ✅ PASS | handles popup-blocked event by triggering automatic redirect fallback | 0ms |
+| ✅ PASS | handles popup dismissal and double-clicks gracefully without crashing | 0ms |
 
 ### 2. YouTube Media & Video Sanitization
 
@@ -65,10 +65,10 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | extracts 11-char ID from watch URL with tracking params | 0ms |
 | ✅ PASS | extracts 11-char ID from short youtu.be URL | 0ms |
 | ✅ PASS | extracts 11-char ID from embed URL | 0ms |
-| ✅ PASS | extracts 11-char ID from live broadcast URL | 0ms |
+| ✅ PASS | extracts 11-char ID from live broadcast URL | 1ms |
 | ✅ PASS | extracts 11-char ID from mobile m.youtube.com URL | 0ms |
 | ✅ PASS | accepts clean 11-character video ID directly | 0ms |
-| ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 1ms |
+| ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 0ms |
 | ✅ PASS | rejects non-YouTube video hosting platforms | 0ms |
 | ✅ PASS | rejects XSS and malicious script payloads | 0ms |
 
@@ -81,7 +81,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | validates Google Slides presentation link | 0ms |
 | ✅ PASS | validates Google Docs document link | 0ms |
 | ✅ PASS | validates Google Sheets spreadsheet link | 0ms |
-| ✅ PASS | validates Google Colab notebook link | 0ms |
+| ✅ PASS | validates Google Colab notebook link | 1ms |
 | ✅ PASS | validates official GitHub repository lab link | 0ms |
 | ✅ PASS | rejects untrusted storage providers and spoofed URLs | 0ms |
 
@@ -100,10 +100,10 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 1ms |
+| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 2ms |
 | ✅ PASS | activates an active enrollment code successfully | 0ms |
 | ✅ PASS | rejects revoked enrollment codes | 0ms |
-| ✅ PASS | rejects expired enrollment codes by timestamp | 1ms |
+| ✅ PASS | rejects expired enrollment codes by timestamp | 0ms |
 | ✅ PASS | enforces single-seat exhaustion transition (1 of 1 -> expired) | 0ms |
 | ✅ PASS | enforces multi-seat cohort capacity (e.g. 25 of 25 -> exhausted) | 0ms |
 | ✅ PASS | prevents replay attacks: same student cannot redeem code twice | 0ms |
@@ -117,7 +117,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | :---: | :--- | :---: |
 | ✅ PASS | computes dynamic completion percentages accurately | 0ms |
 | ✅ PASS | handles zero lessons gracefully without divide-by-zero NaN errors | 0ms |
-| ✅ PASS | filters draft / unpublished lessons for student visibility | 1ms |
+| ✅ PASS | filters draft / unpublished lessons for student visibility | 0ms |
 | ✅ PASS | provides full access to all lessons for administrators | 0ms |
 | ✅ PASS | sorts curriculum chronologically by week and order index | 0ms |
 | ✅ PASS | selects next incomplete lesson intelligently | 0ms |

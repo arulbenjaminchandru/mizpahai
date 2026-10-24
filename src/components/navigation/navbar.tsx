@@ -249,7 +249,10 @@ export function Navbar() {
                 <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                   <Button
                     variant="ghost"
-                    onClick={() => signOut()}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
                     className="w-full justify-start text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 gap-2.5 h-10 px-3"
                   >
                     <LogOut className="h-4 w-4" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -18,7 +18,7 @@ import { GraduationCap, Loader2, ArrowRight } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { signUpWithEmail, signInWithGoogle, user } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, user, loading } = useAuth();
   const { error: toastError, success: toastSuccess } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -33,11 +33,12 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
-  // If already logged in, redirect to dashboard or redeem
-  if (user) {
-    router.push("/dashboard");
-    return null;
-  }
+  // If already logged in, redirect via useEffect (prevent render-phase navigation)
+  useEffect(() => {
+    if (user && !loading) {
+      router.push("/dashboard");
+    }
+  }, [user, loading, router]);
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
@@ -69,12 +70,14 @@ export default function RegisterPage() {
     setAuthError(null);
 
     try {
-      await signInWithGoogle();
-      toastSuccess("Account connected!", "Signed in with Google.");
-      router.push("/redeem");
+      const signedInUser = await signInWithGoogle();
+      if (signedInUser) {
+        toastSuccess("Account connected!", "Signed in with Google.");
+        router.push("/redeem");
+      }
     } catch (err: any) {
       console.error("Google sign up error:", err);
-      if (err.code === "auth/popup-closed-by-user") {
+      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
         return;
       }
       let message = "Could not sign in with Google. Please try again.";
@@ -91,6 +94,17 @@ export default function RegisterPage() {
       setIsGoogleLoading(false);
     }
   };
+
+  if (loading || user) {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
