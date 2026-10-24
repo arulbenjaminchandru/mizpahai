@@ -13,11 +13,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getAdminDb();
-    const snapshot = await db
-      .collection("enrollmentCodes")
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
+    let snapshot;
+    try {
+      snapshot = await db
+        .collection("enrollmentCodes")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+    } catch {
+      snapshot = await db
+        .collection("enrollmentCodes")
+        .limit(100)
+        .get();
+    }
 
     const codes = snapshot.docs.map((doc: any) => {
       const data = doc.data();

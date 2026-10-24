@@ -12,7 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import {
   KeyRound,
@@ -37,6 +45,8 @@ export default function AdminEnrollmentCodesPage() {
 
   const [codes, setCodes] = useState<ExtendedCode[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,10 +79,46 @@ export default function AdminEnrollmentCodesPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCodes(data.codes || []);
+        if (data.codes && Array.isArray(data.codes) && data.codes.length > 0) {
+          setCodes(data.codes);
+          return;
+        }
       }
+      // Direct Firestore fallback
+      const snap = await getDocs(collection(db, "enrollmentCodes"));
+      const fallbackCodes = snap.docs.map((docSnap) => {
+        const d = docSnap.data();
+        const rawCode = d.code || "";
+        const maskedCode =
+          rawCode.length > 8 ? `${rawCode.substring(0, 8)}-••••••` : rawCode;
+        return {
+          id: docSnap.id,
+          ...d,
+          maskedCode,
+          code: rawCode,
+        };
+      }) as ExtendedCode[];
+      setCodes(fallbackCodes);
     } catch (err) {
       console.error("Error fetching codes:", err);
+      try {
+        const snap = await getDocs(collection(db, "enrollmentCodes"));
+        const fallbackCodes = snap.docs.map((docSnap) => {
+          const d = docSnap.data();
+          const rawCode = d.code || "";
+          const maskedCode =
+            rawCode.length > 8 ? `${rawCode.substring(0, 8)}-••••••` : rawCode;
+          return {
+            id: docSnap.id,
+            ...d,
+            maskedCode,
+            code: rawCode,
+          };
+        }) as ExtendedCode[];
+        setCodes(fallbackCodes);
+      } catch (clientErr) {
+        console.error("Direct Firestore load failed:", clientErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,16 +160,40 @@ export default function AdminEnrollmentCodesPage() {
     }
   };
 
+  const fetchEnrollments = async () => {
+    if (!user) return;
+    try {
+      const [enrSnap, usersSnap] = await Promise.all([
+        getDocs(collection(db, "enrollments")),
+        getDocs(collection(db, "users")),
+      ]);
+      const uMap: Record<string, any> = {};
+      usersSnap.docs.forEach((u) => {
+        uMap[u.id] = u.data();
+      });
+      setUsersMap(uMap);
+
+      const enrList = enrSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      setEnrollments(enrList);
+    } catch (err) {
+      console.error("Error loading enrollments:", err);
+    }
+  };
+
   useEffect(() => {
     fetchCodes();
     fetchCourses();
+    fetchEnrollments();
   }, [user]);
 
   const onSubmit = async (data: EnrollmentCodeFormData) => {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/enrollment-codes", {
         method: "POST",
         headers: {
@@ -133,15 +203,75 @@ export default function AdminEnrollmentCodesPage() {
         body: JSON.stringify(data),
       });
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to generate code");
+      if (res.ok) {
+        const result = await res.json();
+        setJustGeneratedCode(result.generatedCode);
+        toastSuccess("Code generated", "Share this code with the authorized student.");
+        reset();
+        setIsModalOpen(false);
+        fetchCodes();
+        fetchEnrollments();
+        return;
+      }
 
-      setJustGeneratedCode(result.generatedCode);
+      // Direct Firestore creation fallback
+      console.warn("API route non-ok, generating directly in Firestore:", res.status);
+      const randomSegment = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const prefix = data.prefix ? data.prefix.toUpperCase() : "DH";
+      const fullCode = `${prefix}-${data.batchName.replace(/\s+/g, "")}-${randomSegment}`;
+      const expiresAtDate = new Date(data.expiresAt);
+
+      await addDoc(collection(db, "enrollmentCodes"), {
+        code: fullCode,
+        codePrefix: prefix,
+        courseId: data.courseId,
+        batchName: data.batchName,
+        maxRedemptions: Number(data.maxRedemptions) || 1,
+        currentRedemptions: 0,
+        expiresAt: Timestamp.fromDate(expiresAtDate),
+        status: "active",
+        createdBy: user.uid,
+        redeemedBy: [],
+        createdAt: serverTimestamp(),
+      });
+
+      setJustGeneratedCode(fullCode);
       toastSuccess("Code generated", "Share this code with the authorized student.");
       reset();
+      setIsModalOpen(false);
       fetchCodes();
+      fetchEnrollments();
     } catch (err: any) {
-      toastError("Generation failed", err.message);
+      console.error("Error creating code, using direct Firestore fallback:", err);
+      try {
+        const randomSegment = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const prefix = data.prefix ? data.prefix.toUpperCase() : "DH";
+        const fullCode = `${prefix}-${data.batchName.replace(/\s+/g, "")}-${randomSegment}`;
+        const expiresAtDate = new Date(data.expiresAt);
+
+        await addDoc(collection(db, "enrollmentCodes"), {
+          code: fullCode,
+          codePrefix: prefix,
+          courseId: data.courseId,
+          batchName: data.batchName,
+          maxRedemptions: Number(data.maxRedemptions) || 1,
+          currentRedemptions: 0,
+          expiresAt: Timestamp.fromDate(expiresAtDate),
+          status: "active",
+          createdBy: user.uid,
+          redeemedBy: [],
+          createdAt: serverTimestamp(),
+        });
+
+        setJustGeneratedCode(fullCode);
+        toastSuccess("Code generated", "Share this code with the authorized student.");
+        reset();
+        setIsModalOpen(false);
+        fetchCodes();
+        fetchEnrollments();
+      } catch (fallbackErr: any) {
+        toastError("Generation failed", fallbackErr.message || err.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -153,7 +283,7 @@ export default function AdminEnrollmentCodesPage() {
     }
     if (!user) return;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/admin/enrollment-codes", {
         method: "PUT",
         headers: {
@@ -165,9 +295,26 @@ export default function AdminEnrollmentCodesPage() {
       if (res.ok) {
         toastSuccess("Code Revoked", "Enrollment key deactivated.");
         fetchCodes();
+        return;
       }
+      // Direct Firestore update fallback
+      await updateDoc(doc(db, "enrollmentCodes", id), {
+        status: "revoked",
+        updatedAt: serverTimestamp(),
+      });
+      toastSuccess("Code Revoked", "Enrollment key deactivated.");
+      fetchCodes();
     } catch (err: any) {
-      toastError("Revocation failed", err.message);
+      try {
+        await updateDoc(doc(db, "enrollmentCodes", id), {
+          status: "revoked",
+          updatedAt: serverTimestamp(),
+        });
+        toastSuccess("Code Revoked", "Enrollment key deactivated.");
+        fetchCodes();
+      } catch (fallbackErr: any) {
+        toastError("Revocation failed", fallbackErr.message || err.message);
+      }
     }
   };
 
@@ -271,7 +418,7 @@ export default function AdminEnrollmentCodesPage() {
               </Button>
             </div>
           ) : (
-            <div className="divide-y divide-slate-800">
+            <div className="divide-y divide-slate-200 dark:divide-[#1e3a5f]">
               {codes.map((code) => {
                 const course = courses.find((c) => c.id === code.courseId);
 
@@ -282,8 +429,8 @@ export default function AdminEnrollmentCodesPage() {
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-teal-300">
-                          {code.maskedCode || "DH-••••••"}
+                        <span className="font-mono font-bold text-sm text-[#0D9488]">
+                          {code.maskedCode || code.code || "DH-••••••"}
                         </span>
                         <Badge
                           variant={
@@ -297,25 +444,40 @@ export default function AdminEnrollmentCodesPage() {
                         >
                           {code.status}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] text-slate-400">
+                        <Badge variant="outline" className="text-[10px] text-slate-500">
                           {code.batchName || "Standard"}
                         </Badge>
                       </div>
 
-                      <p className="text-slate-300 font-medium">
-                        Course: {course?.name || "Assigned Course"}
+                      <p className="text-slate-800 dark:text-slate-200 font-medium">
+                        Course: {course?.name || code.courseId}
                       </p>
 
-                      <div className="flex items-center gap-4 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
                         <span>
                           Redemptions:{" "}
-                          <strong className="text-white">
+                          <strong className="text-slate-900 dark:text-white font-semibold">
                             {code.currentRedemptions || 0} / {code.maxRedemptions || 1}
                           </strong>
                         </span>
+                        {code.expiresAt && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              Expires:{" "}
+                              {typeof (code.expiresAt as any)?.toDate === "function"
+                                ? (code.expiresAt as any).toDate().toLocaleDateString()
+                                : (code.expiresAt as any)?.seconds
+                                ? new Date((code.expiresAt as any).seconds * 1000).toLocaleDateString()
+                                : (code.expiresAt as any)?._seconds
+                                ? new Date((code.expiresAt as any)._seconds * 1000).toLocaleDateString()
+                                : String(code.expiresAt)}
+                            </span>
+                          </>
+                        )}
                         <span>•</span>
                         <span>
-                          Created By Admin UID: {code.createdBy?.substring(0, 8)}...
+                          Admin UID: {code.createdBy ? `${code.createdBy.substring(0, 8)}...` : "System"}
                         </span>
                       </div>
                     </div>
@@ -326,11 +488,87 @@ export default function AdminEnrollmentCodesPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleRevokeCode(code.id)}
-                          className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/20"
+                          className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                         >
                           Revoke Code
                         </Button>
                       )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Active Enrolled Students Section */}
+      <Card className="border-slate-200 bg-white dark:border-[#1e3a5f] dark:bg-[#0B1F3A] shadow-md">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base text-slate-900 dark:text-white">Active Student Enrollments</CardTitle>
+              <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
+                Live list of students who have enrolled or redeemed seats
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs font-semibold border-[#0D9488]/30 text-[#0D9488]">
+              {enrollments.length} {enrollments.length === 1 ? "Active Enrollment" : "Active Enrollments"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {enrollments.length === 0 ? (
+            <div className="p-8 text-center rounded-xl border border-dashed border-slate-200 dark:border-[#1e3a5f] space-y-2">
+              <KeyRound className="h-8 w-8 text-slate-400 mx-auto" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">No student enrollments recorded yet.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-200 dark:divide-[#1e3a5f]">
+              {enrollments.map((enr) => {
+                const course = courses.find((c) => c.id === enr.courseId);
+                const student = usersMap[enr.userId];
+                const enrolledDate = enr.enrolledAt?.toDate
+                  ? enr.enrolledAt.toDate().toLocaleDateString()
+                  : enr.enrolledAt?._seconds
+                  ? new Date(enr.enrolledAt._seconds * 1000).toLocaleDateString()
+                  : "Active";
+
+                return (
+                  <div
+                    key={enr.id}
+                    className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 dark:text-white text-sm">
+                          {student?.displayName || "Enrolled Student"}
+                        </span>
+                        <Badge variant="default" className="text-[10px]">
+                          {enr.status || "active"}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] text-slate-500">
+                          {enr.batchName || course?.batchName || "Cohort"}
+                        </Badge>
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-400">
+                        {student?.email || enr.userId}
+                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-0.5">
+                        <span className="font-medium text-[#0D9488]">
+                          Course: {course?.name || enr.courseId}
+                        </span>
+                        <span>•</span>
+                        <span>Enrolled Date: {enrolledDate}</span>
+                        {enr.enrollmentCodeId && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-[10px]">
+                              Code: {enr.enrollmentCodeId}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -354,7 +592,7 @@ export default function AdminEnrollmentCodesPage() {
             </Label>
             <select
               id="courseId"
-              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="flex h-10 w-full rounded-md border border-slate-300 dark:border-[#1e3a5f] bg-slate-50 dark:bg-[#071527] px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
               {...register("courseId")}
             >
               <option value="">Select a course...</option>

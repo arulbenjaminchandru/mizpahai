@@ -52,28 +52,32 @@ export default function AdminOverviewPage() {
           return;
         }
         // Client fallback
-        const [usersSnap, coursesSnap, lessonsSnap] = await Promise.all([
+        const [usersSnap, enrollSnap, coursesSnap, lessonsSnap] = await Promise.all([
           getDocs(collection(db, "users")),
+          getDocs(collection(db, "enrollments")),
           getDocs(collection(db, "courses")),
           getDocs(collection(db, "lessons")),
         ]);
         setMetrics((prev) => ({
           ...prev,
           totalStudents: usersSnap.size,
+          activeEnrollments: enrollSnap.size,
           totalCourses: coursesSnap.size,
           totalLessons: lessonsSnap.size,
         }));
       } catch (err) {
         console.error("Error fetching metrics:", err);
         try {
-          const [usersSnap, coursesSnap, lessonsSnap] = await Promise.all([
+          const [usersSnap, enrollSnap, coursesSnap, lessonsSnap] = await Promise.all([
             getDocs(collection(db, "users")),
+            getDocs(collection(db, "enrollments")),
             getDocs(collection(db, "courses")),
             getDocs(collection(db, "lessons")),
           ]);
           setMetrics((prev) => ({
             ...prev,
             totalStudents: usersSnap.size,
+            activeEnrollments: enrollSnap.size,
             totalCourses: coursesSnap.size,
             totalLessons: lessonsSnap.size,
           }));

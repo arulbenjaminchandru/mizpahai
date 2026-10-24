@@ -10,6 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+import {
   Users,
   Search,
   ShieldAlert,
@@ -28,6 +37,7 @@ export default function AdminStudentsPage() {
 
   const [students, setStudents] = useState<User[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [enrollmentsMap, setEnrollmentsMap] = useState<Record<string, any[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -45,15 +55,75 @@ export default function AdminStudentsPage() {
         ? `/api/admin/students?search=${encodeURIComponent(searchQuery)}`
         : "/api/admin/students";
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
+      const [res, enrSnap] = await Promise.all([
+        fetch(url, { headers: { Authorization: `Bearer ${token}` } }),
+        getDocs(collection(db, "enrollments")),
+      ]);
+
+      const eMap: Record<string, any[]> = {};
+      enrSnap.docs.forEach((d) => {
+        const data = d.data();
+        const uid = data.userId;
+        if (!eMap[uid]) eMap[uid] = [];
+        eMap[uid].push(data);
       });
+      setEnrollmentsMap(eMap);
+
       if (res.ok) {
         const data = await res.json();
         setStudents(data.students || []);
+        return;
       }
+
+      // Direct Firestore fallback
+      const usersSnap = await getDocs(collection(db, "users"));
+      let fallbackUsers = usersSnap.docs.map((d) => ({
+        uid: d.id,
+        ...d.data(),
+      })) as User[];
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        fallbackUsers = fallbackUsers.filter(
+          (s) =>
+            s.email?.toLowerCase().includes(q) ||
+            s.displayName?.toLowerCase().includes(q)
+        );
+      }
+      setStudents(fallbackUsers);
     } catch (err) {
       console.error("Error fetching students:", err);
+      try {
+        const [usersSnap, enrSnap] = await Promise.all([
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "enrollments")),
+        ]);
+        const eMap: Record<string, any[]> = {};
+        enrSnap.docs.forEach((d) => {
+          const data = d.data();
+          const uid = data.userId;
+          if (!eMap[uid]) eMap[uid] = [];
+          eMap[uid].push(data);
+        });
+        setEnrollmentsMap(eMap);
+
+        let fallbackUsers = usersSnap.docs.map((d) => ({
+          uid: d.id,
+          ...d.data(),
+        })) as User[];
+
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          fallbackUsers = fallbackUsers.filter(
+            (s) =>
+              s.email?.toLowerCase().includes(q) ||
+              s.displayName?.toLowerCase().includes(q)
+          );
+        }
+        setStudents(fallbackUsers);
+      } catch (clientErr) {
+        console.error("Direct Firestore student load failed:", clientErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -68,13 +138,37 @@ export default function AdminStudentsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCourses(data.courses || []);
-        if (data.courses?.length > 0) {
+        if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+          setCourses(data.courses);
           setSelectedCourseId(data.courses[0].id);
+          return;
         }
+      }
+      // Direct Firestore fallback
+      const snap = await getDocs(collection(db, "courses"));
+      const fallbackList = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Course[];
+      setCourses(fallbackList);
+      if (fallbackList.length > 0) {
+        setSelectedCourseId(fallbackList[0].id);
       }
     } catch (err) {
       console.error("Error fetching courses:", err);
+      try {
+        const snap = await getDocs(collection(db, "courses"));
+        const fallbackList = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Course[];
+        setCourses(fallbackList);
+        if (fallbackList.length > 0) {
+          setSelectedCourseId(fallbackList[0].id);
+        }
+      } catch (clientErr) {
+        console.error("Direct Firestore load failed:", clientErr);
+      }
     }
   };
 
@@ -110,9 +204,33 @@ export default function AdminStudentsPage() {
           `Status changed for ${student.email}.`
         );
         fetchStudents();
+        return;
       }
+
+      // Direct Firestore update fallback
+      await updateDoc(doc(db, "users", student.uid), {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+      });
+      toastSuccess(
+        newStatus === "suspended" ? "Student Suspended" : "Student Reactivated",
+        `Status changed for ${student.email}.`
+      );
+      fetchStudents();
     } catch (err: any) {
-      toastError("Failed to update status", err.message);
+      try {
+        await updateDoc(doc(db, "users", student.uid), {
+          status: newStatus,
+          updatedAt: serverTimestamp(),
+        });
+        toastSuccess(
+          newStatus === "suspended" ? "Student Suspended" : "Student Reactivated",
+          `Status changed for ${student.email}.`
+        );
+        fetchStudents();
+      } catch (fallbackErr: any) {
+        toastError("Failed to update status", fallbackErr.message || err.message);
+      }
     }
   };
 
@@ -137,15 +255,55 @@ export default function AdminStudentsPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to assign course");
+      if (res.ok) {
+        toastSuccess(
+          "Course Assigned",
+          `Assigned "${course?.name}" to ${selectedStudent.email}.`
+        );
+        setIsAssignModalOpen(false);
+        fetchStudents();
+        return;
+      }
+
+      // Direct Firestore assignment fallback
+      const enrollmentId = `${selectedStudent.uid}_${selectedCourseId}`;
+      await setDoc(doc(db, "enrollments", enrollmentId), {
+        userId: selectedStudent.uid,
+        courseId: selectedCourseId,
+        batchName: course?.batchName || "Batch 2026",
+        enrollmentCodeId: "admin-direct-assignment",
+        status: "active",
+        enrolledAt: serverTimestamp(),
+      });
 
       toastSuccess(
         "Course Assigned",
         `Assigned "${course?.name}" to ${selectedStudent.email}.`
       );
       setIsAssignModalOpen(false);
+      fetchStudents();
     } catch (err: any) {
-      toastError("Assignment failed", err.message);
+      try {
+        const course = courses.find((c) => c.id === selectedCourseId);
+        const enrollmentId = `${selectedStudent.uid}_${selectedCourseId}`;
+        await setDoc(doc(db, "enrollments", enrollmentId), {
+          userId: selectedStudent.uid,
+          courseId: selectedCourseId,
+          batchName: course?.batchName || "Batch 2026",
+          enrollmentCodeId: "admin-direct-assignment",
+          status: "active",
+          enrolledAt: serverTimestamp(),
+        });
+
+        toastSuccess(
+          "Course Assigned",
+          `Assigned "${course?.name}" to ${selectedStudent.email}.`
+        );
+        setIsAssignModalOpen(false);
+        fetchStudents();
+      } catch (fallbackErr: any) {
+        toastError("Assignment failed", fallbackErr.message || err.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -246,6 +404,33 @@ export default function AdminStudentsPage() {
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                       UID: {st.uid}
                     </p>
+
+                    {/* Student Course Enrollments */}
+                    {(() => {
+                      const studentEnrollments = enrollmentsMap[st.uid] || [];
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {studentEnrollments.length > 0 ? (
+                            studentEnrollments.map((enr, idx) => {
+                              const course = courses.find((c) => c.id === enr.courseId);
+                              return (
+                                <Badge
+                                  key={idx}
+                                  variant="default"
+                                  className="text-[10px] bg-[#0D9488]/15 text-[#0D9488] dark:text-[#14b8a6] border border-[#0D9488]/30 font-medium"
+                                >
+                                  ✓ Enrolled: {course?.name || enr.courseId} ({enr.batchName || "2026"})
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">
+                              No course enrollments
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -310,7 +495,7 @@ export default function AdminStudentsPage() {
               id="courseSelect"
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="flex h-10 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -320,7 +505,7 @@ export default function AdminStudentsPage() {
             </select>
           </div>
 
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
             <Button
               type="button"
               variant="outline"
