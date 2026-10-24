@@ -12,9 +12,19 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
-  const { user, userProfile, loading, isAdmin } = useAuth();
+  const { user, userProfile, loading, isAdmin, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const handleSuspendedSignOut = async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      console.error("Sign out error:", e);
+    } finally {
+      router.push("/login");
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -54,23 +64,46 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
   if (userProfile?.status === "suspended") {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-900 border border-red-500/40 rounded-xl p-6 text-center space-y-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-red-500/40 rounded-xl p-6 text-center space-y-4 shadow-xl">
           <div className="mx-auto w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-            <ShieldAlert className="h-6 w-6 text-red-400" />
+            <ShieldAlert className="h-6 w-6 text-red-500 dark:text-red-400" />
           </div>
-          <h2 className="text-xl font-bold text-white">Account Suspended</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Account Suspended</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
             Your student account has been temporarily suspended. Please contact
             your course instructor or administrator at{" "}
-            <span className="text-teal-400 font-mono">support@datahorizon.ai</span>.
+            <a
+              href="https://wa.me/919894481283?text=Hi%20Arul%2C%20my%20student%20account%20is%20suspended"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0D9488] hover:underline font-semibold"
+            >
+              +91-9894481283
+            </a>
+            .
           </p>
-          <Button
-            variant="outline"
-            onClick={() => router.push("/login")}
-            className="w-full"
-          >
-            Sign Out
-          </Button>
+          <div className="pt-2 flex flex-col gap-2">
+            <a
+              href="https://wa.me/919894481283?text=Hi%20Arul%2C%20my%20student%20account%20is%20suspended"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full"
+            >
+              <Button
+                type="button"
+                className="w-full bg-[#0D9488] hover:bg-[#0b7c72] text-white font-medium"
+              >
+                Contact via WhatsApp (+91-9894481283)
+              </Button>
+            </a>
+            <Button
+              variant="outline"
+              onClick={handleSuspendedSignOut}
+              className="w-full border-slate-300 dark:border-slate-700"
+            >
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
     );

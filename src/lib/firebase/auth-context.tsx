@@ -11,6 +11,8 @@ import {
 import {
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -57,6 +59,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 // ─── Provider ────────────────────────────────────────────────────────────────
 
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -101,6 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen to auth state changes
   useEffect(() => {
+    // Process redirect result if coming back from signInWithRedirect
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await fetchUserData(result.user);
+        }
+      })
+      .catch((err) => {
+        console.warn("Redirect result handler:", err);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
@@ -120,25 +134,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Auth actions ─────────────────────────────────────────────────────────
 
   const signInWithGoogle = useCallback(async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    const firebaseUser = result.user;
+    let firebaseUser: FirebaseUser | null = null;
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      firebaseUser = result.user;
+    } catch (popupErr: any) {
+      if (popupErr?.code === "auth/popup-blocked") {
+        console.warn("Popup blocked by browser, falling back to signInWithRedirect...");
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      throw popupErr;
+    }
 
-    // Create Firestore profile if it doesn't exist
-    const userDocRef = doc(db, "users", firebaseUser.uid);
-    const userDoc = await getDoc(userDocRef);
+    if (!firebaseUser) return;
 
-    if (!userDoc.exists()) {
-      await setDoc(userDocRef, {
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName ?? "",
-        photoURL: firebaseUser.photoURL ?? null,
-        role: "student",
-        status: "active",
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-      });
-    } else {
-      await setDoc(userDocRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+    // Create or sync Firestore profile
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, {
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName ?? "",
+          photoURL: firebaseUser.photoURL ?? null,
+          role: "student",
+          status: "active",
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+        });
+      } else {
+        await setDoc(userDocRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+      }
+    } catch (profileErr) {
+      console.warn("Could not sync user profile in Firestore:", profileErr);
     }
 
     await fetchUserData(firebaseUser);

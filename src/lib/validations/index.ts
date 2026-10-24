@@ -12,13 +12,13 @@ export function extractYouTubeVideoId(url: string): string | null {
 
   const patterns = [
     // youtube.com/watch?v=VIDEO_ID
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
     // youtu.be/VIDEO_ID
-    /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /^(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
     // youtube.com/embed/VIDEO_ID
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
     // youtube.com/live/VIDEO_ID
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/live\/([a-zA-Z0-9_-]{11})/,
+    /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?youtube\.com\/live\/([a-zA-Z0-9_-]{11})/,
   ];
 
   for (const pattern of patterns) {

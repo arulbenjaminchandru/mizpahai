@@ -316,13 +316,13 @@ export default function InstructionsPage() {
               >
                 <Button className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-2">
                   <Phone className="h-3.5 w-3.5" />
-                  WhatsApp Admissions (+91 98944 81283)
+                  WhatsApp (+91-9894481283)
                 </Button>
               </a>
-              <a href="mailto:arulbenjaminchandru@gmail.com">
+              <a href="tel:+919894481283">
                 <Button variant="outline" className="border-slate-300 dark:border-slate-700 text-xs gap-2">
-                  <Mail className="h-3.5 w-3.5" />
-                  Email Support
+                  <Phone className="h-3.5 w-3.5" />
+                  Call +91-9894481283
                 </Button>
               </a>
             </div>

@@ -71,20 +71,20 @@ export function Footer() {
             </h4>
             <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <a
+                href="tel:+919894481283"
+                className="flex items-center gap-2 hover:text-teal-500 transition-colors"
+              >
+                <Phone className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+                <span>+91-9894481283 (Phone)</span>
+              </a>
+              <a
                 href="https://wa.me/919894481283?text=Hi%20Arul%2C%20I%20have%20a%20question%20about%20TiBen%20AI%20Academy"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-teal-500 transition-colors"
               >
-                <Phone className="h-3.5 w-3.5 text-teal-500 shrink-0" />
-                <span>+91 98944 81283 (WhatsApp)</span>
-              </a>
-              <a
-                href="mailto:arulbenjaminchandru@gmail.com"
-                className="flex items-center gap-2 hover:text-teal-500 transition-colors"
-              >
-                <Mail className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span className="truncate">arulbenjaminchandru@gmail.com</span>
+                <Phone className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <span>+91-9894481283 (WhatsApp)</span>
               </a>
               <a
                 href="https://www.linkedin.com/in/arulbenjamin"

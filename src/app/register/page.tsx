@@ -74,11 +74,19 @@ export default function RegisterPage() {
       router.push("/redeem");
     } catch (err: any) {
       console.error("Google sign up error:", err);
-      if (err.code !== "auth/popup-closed-by-user") {
-        const message = "Could not sign in with Google. Please try again.";
-        setAuthError(message);
-        toastError("Google Sign-In failed", message);
+      if (err.code === "auth/popup-closed-by-user") {
+        return;
       }
+      let message = "Could not sign in with Google. Please try again.";
+      if (err.code === "auth/unauthorized-domain") {
+        message = "This domain is not authorized in Firebase Authentication. Please check Firebase authorized domains.";
+      } else if (err.code === "auth/popup-blocked") {
+        message = "The sign-in popup was blocked by your browser. Please allow popups for this site.";
+      } else if (err.message && !err.message.includes("Firebase:")) {
+        message = err.message;
+      }
+      setAuthError(message);
+      toastError("Google Sign-In failed", message);
     } finally {
       setIsGoogleLoading(false);
     }
