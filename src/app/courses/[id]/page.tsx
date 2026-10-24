@@ -240,7 +240,7 @@ function CoursePlayerContent({
   if (loading) {
     return (
       <AuthGuard>
-        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
           <Navbar />
           <div className="flex-1 flex flex-col items-center justify-center p-4">
             <Loader2 className="h-8 w-8 text-teal-500 dark:text-teal-400 animate-spin mb-3" />
@@ -256,7 +256,7 @@ function CoursePlayerContent({
   if (isAuthorized === false) {
     return (
       <AuthGuard>
-        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
           <Navbar />
           <div className="flex-1 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-amber-500/40 rounded-2xl p-8 text-center space-y-4 shadow-xl">
@@ -290,7 +290,7 @@ function CoursePlayerContent({
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
         <Navbar />
 
         {/* Classroom Header Bar */}
@@ -314,7 +314,7 @@ function CoursePlayerContent({
                   </Badge>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Instructor: {course?.instructorName || "Arul Benjamin · Mizpah AI"}
+                  Instructor: {course?.instructorName || "Arul Benjamin · TiBen AI Academy"}
                 </p>
               </div>
             </div>

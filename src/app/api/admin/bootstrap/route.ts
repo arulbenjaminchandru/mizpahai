@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       if (lookupErr?.code === "auth/user-not-found") {
         return NextResponse.json(
           {
-            error: `No user found with email "${email}". Please register an account on Mizpah AI first, then run bootstrap.`,
+            error: `No user found with email "${email}". Please register an account on TiBen AI Academy first, then run bootstrap.`,
           },
           { status: 404 }
         );

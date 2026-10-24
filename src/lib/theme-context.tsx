@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Read persisted theme or default to dark
-    const saved = localStorage.getItem("mizpah_theme") as Theme | null;
+    const saved = (localStorage.getItem("tiben_theme") || localStorage.getItem("mizpah_theme")) as Theme | null;
     const initialTheme = saved === "light" ? "light" : "dark";
     setThemeState(initialTheme);
 
@@ -35,7 +35,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem("mizpah_theme", newTheme);
+    localStorage.setItem("tiben_theme", newTheme);
     const root = document.documentElement;
     if (newTheme === "dark") {
       root.classList.add("dark");

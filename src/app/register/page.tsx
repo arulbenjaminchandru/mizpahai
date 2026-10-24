@@ -45,7 +45,7 @@ export default function RegisterPage() {
 
     try {
       await signUpWithEmail(data.email, data.password, data.displayName);
-      toastSuccess("Account created!", "Welcome to Mizpah AI.");
+      toastSuccess("Account created!", "Welcome to TiBen AI Academy.");
       router.push("/redeem"); // Prompt newly registered students to enter enrollment code
     } catch (err: any) {
       console.error("Registration error:", err);
@@ -85,7 +85,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
       <Navbar />
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -98,7 +98,7 @@ export default function RegisterPage() {
               Create Your Account
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-              Join Mizpah AI to access your Data Horizon coursework
+              Join TiBen AI Academy to access your coursework and live cohorts
             </p>
           </div>
 

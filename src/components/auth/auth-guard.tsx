@@ -39,7 +39,7 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Verifying credentials...
             </p>
-            <p className="text-xs text-slate-500 mt-1">Mizpah AI LMS</p>
+            <p className="text-xs text-slate-500 mt-1">TiBen AI Academy</p>
           </div>
         </div>
       </div>

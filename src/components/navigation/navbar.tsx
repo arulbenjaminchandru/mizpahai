@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export function Navbar() {
   const { user, userProfile, isAdmin, signOut, loading } = useAuth();
@@ -32,22 +33,10 @@ export function Navbar() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md dark:border-[#1e3a5f] dark:bg-[#071527]/95 transition-colors">
       <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-teal-400 via-cyan-500 to-amber-500 flex items-center justify-center text-slate-950 shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
-            <Sparkles className="h-5 w-5 font-bold text-slate-950" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white group-hover:text-teal-500 transition-colors">
-              Mizpah AI
-            </span>
-            <span className="text-[10px] tracking-wider uppercase text-amber-500 dark:text-teal-400 font-bold -mt-1">
-              Data Horizon
-            </span>
-          </div>
-        </Link>
+        <BrandLogo href="/" size="md" />
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-1.5 sm:gap-2">
@@ -175,7 +164,7 @@ export function Navbar() {
 
       {/* Mobile Slide-down Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md px-4 py-4 space-y-3 shadow-xl animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden border-t border-slate-200 dark:border-[#1e3a5f] bg-white/95 dark:bg-[#071527]/98 backdrop-blur-md px-4 py-4 space-y-3 shadow-xl animate-in slide-in-from-top-2 duration-200">
           {user && (
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 px-1">
               <div>

@@ -124,7 +124,7 @@ export default function StudentDashboardPage() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
         <Navbar />
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
@@ -136,7 +136,7 @@ export default function StudentDashboardPage() {
                   Student Portal
                 </span>
                 <span className="text-slate-400 dark:text-slate-600">•</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Mizpah AI Academy</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">TiBen AI Academy</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1">
                 Welcome back,{" "}
@@ -279,7 +279,7 @@ export default function StudentDashboardPage() {
                     You Have No Enrolled Courses
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                    To access recordings and materials, enter your enrollment code provided by the Mizpah AI administrator.
+                    To access recordings and materials, enter your enrollment code provided by the TiBen AI Academy administrator.
                   </p>
                 </div>
                 <Link href="/redeem" className="inline-block pt-2">

@@ -66,7 +66,7 @@ export default function ProfilePage() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
         <Navbar />
 
         <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
@@ -177,7 +177,7 @@ export default function ProfilePage() {
                         No Active Course Enrollments
                       </h3>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        You have not redeemed any course enrollment code yet. Contact your Mizpah AI instructor to obtain your access code.
+                        You have not redeemed any course enrollment code yet. Contact your TiBen AI Academy instructor to obtain your access code.
                       </p>
                       <Link href="/redeem" className="inline-block pt-2">
                         <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs">
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                                 {course?.description || "Curriculum & recordings active"}
                               </p>
                               <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
-                                <span>Instructor: {course?.instructorName || "Arul Benjamin · Mizpah AI"}</span>
+                                <span>Instructor: {course?.instructorName || "Arul Benjamin · TiBen AI Academy"}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                                   <CheckCircle className="h-3 w-3" />
@@ -240,7 +240,7 @@ export default function ProfilePage() {
                     • Video lectures are streamed securely via unlisted YouTube IFrame embeds for authorized cohort members.
                   </p>
                   <p>
-                    • Learning resources (code templates, slides, datasets) reside on Google Drive. Make sure your Google Account has been granted read permissions by Mizpah AI.
+                    • Learning resources (code templates, slides, datasets) reside on Google Drive. Make sure your Google Account has been granted read permissions by TiBen AI Academy.
                   </p>
                   <p>
                     • Do not redistribute or publish recordings or proprietary cohort assets. Violations result in immediate access revocation.

@@ -88,7 +88,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
       <Navbar />
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -98,7 +98,7 @@ function LoginForm() {
               <GraduationCap className="h-6 w-6" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Sign In to Mizpah AI
+              Sign In to TiBen AI Academy
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
               Access your Data Horizon live sessions, recordings, and resources

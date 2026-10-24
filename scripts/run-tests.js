@@ -1,5 +1,5 @@
 /**
- * Data Horizon Academy - Automated Test Suite
+ * TiBen AI Academy - Automated Test Suite
  *
  * Runs end-to-end verification of validation logic, YouTube URL processing,
  * Google Drive link checks, enrollment code policies, and security constraints.

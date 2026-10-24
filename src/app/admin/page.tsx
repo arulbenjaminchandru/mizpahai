@@ -137,7 +137,7 @@ export default function AdminOverviewPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link href="/admin/courses">
-            <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold gap-1.5 text-xs">
+            <Button size="sm" className="bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold gap-1.5 text-xs shadow-sm">
               <PlusCircle className="h-4 w-4" />
               New Course
             </Button>

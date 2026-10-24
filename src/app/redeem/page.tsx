@@ -78,7 +78,7 @@ export default function RedeemCodePage() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
         <Navbar />
 
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -90,7 +90,7 @@ export default function RedeemCodePage() {
                 </div>
                 <CardTitle className="text-xl text-slate-900 dark:text-slate-100">Redeem Enrollment Code</CardTitle>
                 <CardDescription className="text-slate-500 dark:text-slate-400">
-                  Enter the unique access code provided by your Mizpah AI instructor
+                  Enter the unique access code provided by your TiBen AI Academy instructor
                 </CardDescription>
               </CardHeader>
 
@@ -178,7 +178,7 @@ export default function RedeemCodePage() {
               <CardFooter className="pt-2 border-t border-slate-200 dark:border-slate-800/80 justify-center">
                 <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                   <ShieldCheck className="h-3.5 w-3.5 text-teal-500 dark:text-teal-400" />
-                  <span>Verified Mizpah AI student access</span>
+                  <span>Verified TiBen AI Academy student access</span>
                 </div>
               </CardFooter>
             </Card>

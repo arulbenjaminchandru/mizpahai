@@ -1,36 +1,30 @@
 import Link from "next/link";
-import { Sparkles, ShieldCheck, Database, Award, Phone, Mail } from "lucide-react";
+import { ShieldCheck, Database, Award, Phone, Mail } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export function Footer() {
   return (
-    <footer className="w-full border-t border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 py-12 transition-colors">
+    <footer className="w-full border-t border-slate-200 bg-white text-slate-600 dark:border-slate-800/80 dark:bg-[#071527] dark:text-slate-400 py-12 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-500">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <span className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Mizpah AI <span className="font-normal text-slate-400 dark:text-slate-500">/ Data Horizon</span>
-              </span>
-            </div>
+            <BrandLogo size="md" />
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Mizpah AI Learning Management System — an enterprise-grade, private learning environment for engineering cohorts.
+              TiBen AI Academy is an international technology education company delivering rigorous, industry-accredited programs in Artificial Intelligence, Generative AI, and Cloud Data Engineering.
             </p>
             <div className="pt-1 text-xs text-slate-500 dark:text-slate-400">
-              Mentor: <strong>Arul Benjamin</strong> — AI Architect · Founder, Mizpah AI
+              Lead Mentor: <strong>Arul Benjamin</strong> — AI Architect · Founder, TiBen AI Academy
             </div>
           </div>
 
           <div>
             <h4 className="text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider mb-3">
-              LMS Quick Links
+              Academy Resources
             </h4>
             <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <li>
                 <Link href="/instructions" className="hover:text-teal-500 transition-colors">
-                  How to Register &amp; Activate
+                  Student Guide &amp; Course Activation
                 </Link>
               </li>
               <li>
@@ -40,7 +34,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/login" className="hover:text-teal-500 transition-colors">
-                  Student &amp; Admin Sign In
+                  Student &amp; Faculty Sign In
                 </Link>
               </li>
               <li>
@@ -77,7 +71,7 @@ export function Footer() {
             </h4>
             <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <a
-                href="https://wa.me/919894481283?text=Hi%20Arul%2C%20I%20have%20a%20question%20about%20Data%20Horizon"
+                href="https://wa.me/919894481283?text=Hi%20Arul%2C%20I%20have%20a%20question%20about%20TiBen%20AI%20Academy"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-teal-500 transition-colors"
@@ -108,9 +102,9 @@ export function Footer() {
         </div>
 
         <div className="pt-6 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-500 gap-2">
-          <p>© {new Date().getFullYear()} Mizpah AI · Chennai, India · Live online via Microsoft Teams</p>
+          <p>© {new Date().getFullYear()} TiBen AI Academy · Global Engineering Education · Live Online</p>
           <p className="font-mono text-[11px] uppercase tracking-wider text-teal-600 dark:text-teal-400">
-            Skills · Certifications · Projects · Lifelong Learning
+            Credibility · Engineering Rigor · Lifelong Classroom
           </p>
         </div>
       </div>

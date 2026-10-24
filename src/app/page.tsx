@@ -272,7 +272,7 @@ export default function HomePage() {
       a: "No. Your recordings and materials stay available for life, free.",
     },
     {
-      q: "I studied in an earlier Mizpah AI cohort. Can I still watch my recordings?",
+      q: "I studied in an earlier TiBen AI Academy cohort. Can I still watch my recordings?",
       a: "Yes. Sign in with your registered email. If you can't see your course, message us on WhatsApp for your enrollment code.",
     },
     {
@@ -286,7 +286,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
       <Navbar />
 
       {/* 2. HERO — TWO DOORS */}
@@ -297,7 +297,7 @@ export default function HomePage() {
               Learn live. Keep your classroom for life.
             </h1>
             <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
-              Mizpah AI is the private classroom for our cohorts. Join a live program, and every
+              TiBen AI Academy is the private classroom for our cohorts. Join a live program, and every
               recording, notebook and slide stays yours to rewatch, free, forever.
             </p>
           </div>
@@ -329,7 +329,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Countdown Box Inside Door 1 */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#071527] border border-slate-200 dark:border-slate-800 text-center space-y-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
                     Next cohort starts in
                   </span>
@@ -416,7 +416,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#071527] border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <PlayCircle className="h-4 w-4 text-teal-500 shrink-0" />
                     <span>Watch all sessions with zero ads</span>
@@ -471,7 +471,7 @@ export default function HomePage() {
               Your classroom for life
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-              When you join a Mizpah AI cohort, you never lose your learning.
+              When you join a TiBen AI Academy cohort, you never lose your learning.
             </p>
           </div>
 
@@ -508,7 +508,7 @@ export default function HomePage() {
                 Previous cohorts welcome
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Recordings from earlier Mizpah AI cohorts are available here too, so past students can sign in and revise anytime.
+                Recordings from earlier TiBen AI cohorts are available here too, so past students can sign in and revise anytime.
               </p>
             </Card>
 
@@ -532,7 +532,7 @@ export default function HomePage() {
       </section>
 
       {/* 4. HOW TO ACCESS YOUR CLASSROOM */}
-      <section className="py-14 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <section className="py-14 bg-slate-50 dark:bg-[#071527] border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center space-y-1">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -632,7 +632,7 @@ export default function HomePage() {
       </section>
 
       {/* 6. WHO THIS IS FOR */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <section className="py-16 bg-slate-50 dark:bg-[#071527] border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
@@ -760,7 +760,7 @@ export default function HomePage() {
       </section>
 
       {/* 8. YOUR LEARNING JOURNEY */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <section className="py-16 bg-slate-50 dark:bg-[#071527] border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
@@ -1052,7 +1052,7 @@ export default function HomePage() {
       </section>
 
       {/* 10. MEET YOUR MENTOR */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <section className="py-16 bg-slate-50 dark:bg-[#071527] border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
@@ -1076,7 +1076,7 @@ export default function HomePage() {
                   Arul Benjamin
                 </h3>
                 <p className="text-xs font-semibold text-teal-600 dark:text-teal-400">
-                  AI Architect · Founder, Mizpah AI
+                  AI Architect · Founder, TiBen AI Academy
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   13+ years across Banking, Insurance &amp; Healthcare
@@ -1129,7 +1129,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 space-y-1">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#071527] space-y-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                   Installment 1
                 </span>
@@ -1139,7 +1139,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 space-y-1">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#071527] space-y-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-amber-500">
                   Installment 2
                 </span>
@@ -1196,7 +1196,7 @@ export default function HomePage() {
       </section>
 
       {/* 12. FAQ (ACCORDION) */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <section className="py-16 bg-slate-50 dark:bg-[#071527] border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center space-y-1">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">

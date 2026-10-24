@@ -1,5 +1,5 @@
 /**
- * Data Horizon Academy - Administrator Bootstrap Script
+ * TiBen AI Academy - Administrator Bootstrap Script
  *
  * Promotes a user to the Administrator role by:
  * 1. Looking up user by email in Firebase Auth
@@ -80,7 +80,7 @@ async function bootstrapAdmin() {
   const db = getFirestore(app);
 
   try {
-    console.log(`\n\x1b[36m[Data Horizon Academy]\x1b[0m Looking up user: ${email}...`);
+    console.log(`\n\x1b[36m[TiBen AI Academy]\x1b[0m Looking up user: ${email}...`);
     const userRecord = await auth.getUserByEmail(email);
 
     console.log(`User found! UID: ${userRecord.uid}`);

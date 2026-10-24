@@ -1,4 +1,4 @@
-# Data Horizon Academy LMS
+# TiBen AI Academy LMS
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.4.3-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
@@ -6,9 +6,9 @@
 [![Firebase](https://img.shields.io/badge/Firebase-v13-FFA611?style=flat&logo=firebase)](https://firebase.google.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](#)
 
-A production-grade, private Learning Management System (LMS) built for **Data Horizon**, designed for specialized cohorts in **Data Engineering, Python, Cloud Computing, and Generative AI**.
+A production-grade, global technology education platform and private Learning Management System (LMS) built for **TiBen AI Academy**, designed for specialized cohorts in **Artificial Intelligence, Generative AI, Cloud Computing, and Data Engineering**.
 
-Inspired by course delivery experiences such as Graphy, **Data Horizon Academy** provides a secure, distraction-free environment for delivering private lecture recordings, weekly structured modules, Google Drive learning materials, and student enrollment access control.
+**TiBen AI Academy** provides a secure, distraction-free environment for delivering private lecture recordings, weekly structured modules, Google Drive learning materials, and student enrollment access control.
 
 ---
 
