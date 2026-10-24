@@ -55,3 +55,7 @@ firebase-export-*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Media & local video recording assets
+/public/videos/
+scripts/record-student-walkthrough.js

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { Navbar } from "@/components/navigation/navbar";
 import { Footer } from "@/components/navigation/footer";
+import { StudentWalkthroughVideo } from "@/components/video/StudentWalkthroughVideo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -460,6 +461,30 @@ export default function HomePage() {
               </div>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* 2.5 STUDENT PLATFORM WALKTHROUGH & HOW-TO VIDEO */}
+      <section id="walkthrough" className="py-12 sm:py-16 bg-slate-100/70 dark:bg-[#09182a] border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <Badge
+              variant="outline"
+              className="text-xs uppercase tracking-wider font-semibold border-teal-500/30 text-teal-600 dark:text-teal-400 bg-teal-500/10"
+            >
+              <Sparkles className="h-3 w-3 mr-1" />
+              New Student Orientation
+            </Badge>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Platform Walkthrough: How TiBen AI Works
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+              New to TiBen AI Academy or activating your cohort access key? Watch our complete step-by-step
+              walkthrough video below to see how to sign in, redeem your code, stream live session recordings, and download lab materials.
+            </p>
+          </div>
+
+          <StudentWalkthroughVideo />
         </div>
       </section>
 
