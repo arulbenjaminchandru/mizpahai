@@ -74,42 +74,20 @@ service cloud.firestore {
     }
 
     // ─── Collection: enrollmentCodes ───────────────────────────────────────
-    // Admins manage codes. Signed-in students can validate and redeem active codes.
     match /enrollmentCodes/{codeId} {
-      allow read: if isSignedIn();
+      allow read, update: if isSignedIn();
       allow create, delete: if isAdmin();
-      allow update: if isSignedIn() && (
-        isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentRedemptions', 'redeemedBy', 'status'])
-      );
     }
 
     // ─── Collection: enrollments ───────────────────────────────────────────
     match /enrollments/{enrollmentId} {
-      // Students can read their own enrollments. Admins can read all.
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      // Students can activate their own enrollment; Admins can assign any enrollment.
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      allow update, delete: if isAdmin();
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
     }
 
     // ─── Collection: lessonProgress ────────────────────────────────────────
     match /lessonProgress/{progressId} {
-      // Students can read and record their own lesson completion
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      allow create, update: if isSignedIn() && isStudentActive() && (
-        request.resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
+      allow read, create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
