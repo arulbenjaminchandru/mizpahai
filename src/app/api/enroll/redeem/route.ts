@@ -4,6 +4,9 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { enrollmentRedemptionSchema } from "@/lib/validations";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 // Basic in-memory IP/User rate limiting store for redemption attempts
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 

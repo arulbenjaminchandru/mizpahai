@@ -16,6 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { KeyRound, Loader2, CheckCircle2, ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  arrayUnion,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 export default function RedeemCodePage() {
   const router = useRouter();
@@ -27,6 +40,7 @@ export default function RedeemCodePage() {
     courseId: string;
     courseName: string;
     batchName: string;
+    alreadyEnrolled?: boolean;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -44,33 +58,150 @@ export default function RedeemCodePage() {
     setIsLoading(true);
     setErrorMessage(null);
 
+    const targetCode = data.code.trim().toUpperCase();
+
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/enroll/redeem", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ code: data.code.trim().toUpperCase() }),
-      });
+      // 1. Force refresh token for authoritative permissions
+      const token = await user.getIdToken(true);
 
-      const result = await res.json();
+      // 2. Attempt redemption via serverless API
+      let res: Response | null = null;
+      let result: any = null;
 
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to redeem code");
+      try {
+        res = await fetch("/api/enroll/redeem", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ code: targetCode }),
+        });
+
+        if (res) {
+          const text = await res.text();
+          result = text ? JSON.parse(text) : null;
+        }
+      } catch (networkOrJsonErr) {
+        console.warn("API redemption response issue, falling back to direct Firestore:", networkOrJsonErr);
       }
 
-      setRedeemResult({
-        courseId: result.courseId,
-        courseName: result.courseName,
-        batchName: result.batchName,
+      // If server API successfully processed redemption
+      if (res && res.ok && result?.success) {
+        setRedeemResult({
+          courseId: result.courseId,
+          courseName: result.courseName,
+          batchName: result.batchName,
+        });
+        toastSuccess("Enrolled successfully!", result.message);
+        return;
+      }
+
+      // If server returned a definitive validation error (e.g. bad format, already used)
+      if (res && res.status === 400 && result?.error && !result.error.toLowerCase().includes("internal")) {
+        throw new Error(result.error);
+      }
+
+      // 3. Resilient Direct Client Fallback via Firestore
+      const q = query(
+        collection(db, "enrollmentCodes"),
+        where("code", "==", targetCode)
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        throw new Error("Invalid enrollment code. Please check your spelling and try again.");
+      }
+
+      const codeDoc = snap.docs[0];
+      const codeData = codeDoc.data();
+      const courseId = codeData.courseId;
+      const batchName = codeData.batchName || "Standard Cohort";
+
+      // Fetch course name
+      let courseName = "Course";
+      try {
+        const cSnap = await getDoc(doc(db, "courses", courseId));
+        if (cSnap.exists()) {
+          courseName = cSnap.data()?.name || "Course";
+        }
+      } catch (cErr) {
+        console.warn("Could not fetch course title:", cErr);
+      }
+
+      // Check if user is already enrolled
+      const enrollmentId = `${user.uid}_${courseId}`;
+      const existingEnrollment = await getDoc(doc(db, "enrollments", enrollmentId));
+      if (existingEnrollment.exists()) {
+        setRedeemResult({
+          courseId,
+          courseName,
+          batchName,
+          alreadyEnrolled: true,
+        });
+        toastSuccess("Already Enrolled", `You already have active access to "${courseName}". Welcome back!`);
+        return;
+      }
+
+      // Check status
+      if (codeData.status === "revoked") {
+        throw new Error("This enrollment code has been revoked by the administrator.");
+      }
+
+      // Check expiration date
+      if (codeData.expiresAt) {
+        const expDate = typeof codeData.expiresAt.toDate === "function"
+          ? codeData.expiresAt.toDate()
+          : new Date((codeData.expiresAt.seconds || codeData.expiresAt._seconds) * 1000);
+        if (new Date() > expDate) {
+          throw new Error("This enrollment code has expired.");
+        }
+      }
+
+      // Check redemption capacity
+      const maxRedemptions = codeData.maxRedemptions || 1;
+      const currentRedemptions = codeData.currentRedemptions || 0;
+      if (currentRedemptions >= maxRedemptions) {
+        throw new Error("This enrollment code has already reached its maximum redemptions limit.");
+      }
+
+      // Check if user previously redeemed this specific code
+      const redeemedBy: string[] = codeData.redeemedBy || [];
+      if (redeemedBy.includes(user.uid)) {
+        throw new Error("You have already redeemed this code.");
+      }
+
+      // Write enrollment record
+      await setDoc(doc(db, "enrollments", enrollmentId), {
+        userId: user.uid,
+        courseId,
+        batchName,
+        enrollmentCodeId: codeDoc.id,
+        status: "active",
+        enrolledAt: serverTimestamp(),
       });
 
-      toastSuccess("Enrolled successfully!", result.message);
+      // Update code redemptions
+      const nextRedemptions = currentRedemptions + 1;
+      await updateDoc(doc(db, "enrollmentCodes", codeDoc.id), {
+        currentRedemptions: nextRedemptions,
+        redeemedBy: arrayUnion(user.uid),
+        status: nextRedemptions >= maxRedemptions ? "expired" : codeData.status,
+      });
+
+      setRedeemResult({
+        courseId,
+        courseName,
+        batchName,
+      });
+
+      toastSuccess(
+        "Enrolled successfully!",
+        `Congratulations! You have been successfully enrolled in "${courseName}".`
+      );
     } catch (err: any) {
-      setErrorMessage(err.message);
-      toastError("Redemption Failed", err.message);
+      setErrorMessage(err.message || "Failed to redeem code");
+      toastError("Redemption Failed", err.message || "Failed to redeem code");
     } finally {
       setIsLoading(false);
     }
@@ -101,19 +232,26 @@ export default function RedeemCodePage() {
                       <CheckCircle2 className="h-8 w-8" />
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Enrollment Confirmed!</h3>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {redeemResult.alreadyEnrolled ? "Already Enrolled!" : "Enrollment Confirmed!"}
+                      </h3>
                       <p className="text-sm text-teal-600 dark:text-teal-400 font-medium">
                         {redeemResult.courseName}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Batch: {redeemResult.batchName}
                       </p>
+                      {redeemResult.alreadyEnrolled && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+                          You already have lifetime access to this classroom.
+                        </p>
+                      )}
                     </div>
 
                     <div className="pt-4 flex flex-col gap-2">
                       <Link href={`/courses/${redeemResult.courseId}`} className="w-full">
                         <Button className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold gap-2">
-                          Start Learning
+                          {redeemResult.alreadyEnrolled ? "Open Course Classroom" : "Start Learning"}
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       </Link>

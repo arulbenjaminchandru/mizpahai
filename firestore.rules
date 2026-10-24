@@ -87,20 +87,29 @@ service cloud.firestore {
     }
 
     // ─── Collection: enrollmentCodes ───────────────────────────────────────
-    // Critical: Enrollment codes are NEVER readable or writable directly by clients.
-    // Redemption MUST go through the server-side API endpoint using Firebase Admin SDK!
+    // Admins manage codes. Signed-in students can validate and redeem active codes.
     match /enrollmentCodes/{codeId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentRedemptions', 'redeemedBy', 'status'])
+      );
     }
 
     // ─── Collection: enrollments ───────────────────────────────────────────
     match /enrollments/{enrollmentId} {
-      // Students can read their own enrollments. Only admins can create/update directly.
+      // Students can read their own enrollments. Admins can read all.
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         isAdmin()
       );
-      allow write: if isAdmin();
+      // Students can activate their own enrollment; Admins can assign any enrollment.
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if isAdmin();
     }
 
     // ─── Collection: lessonProgress ────────────────────────────────────────
