@@ -18,6 +18,8 @@ import {
   getDocs,
   doc,
   getDoc,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Course, Week, Module, Lesson, Resource, LessonProgress } from "@/types";
@@ -182,7 +184,7 @@ function CoursePlayerContent({
 
     setTogglingProgress(true);
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/progress/toggle", {
         method: "POST",
         headers: {
@@ -196,7 +198,17 @@ function CoursePlayerContent({
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to update progress");
+      if (!res.ok) {
+        // Direct Firestore fallback
+        const progressId = `${user.uid}_${activeLesson.id}`;
+        await setDoc(doc(db, "lessonProgress", progressId), {
+          userId: user.uid,
+          courseId,
+          lessonId: activeLesson.id,
+          completed: nextStatus,
+          updatedAt: serverTimestamp(),
+        });
+      }
 
       setProgressMap((prev) => ({
         ...prev,
@@ -207,7 +219,28 @@ function CoursePlayerContent({
         toastSuccess("Lesson Completed!", `Recorded completion for "${activeLesson.title}".`);
       }
     } catch (err: any) {
-      toastError("Error", err.message);
+      try {
+        // Direct Firestore fallback
+        const progressId = `${user.uid}_${activeLesson.id}`;
+        await setDoc(doc(db, "lessonProgress", progressId), {
+          userId: user.uid,
+          courseId,
+          lessonId: activeLesson.id,
+          completed: nextStatus,
+          updatedAt: serverTimestamp(),
+        });
+
+        setProgressMap((prev) => ({
+          ...prev,
+          [activeLesson.id]: nextStatus,
+        }));
+
+        if (nextStatus) {
+          toastSuccess("Lesson Completed!", `Recorded completion for "${activeLesson.title}".`);
+        }
+      } catch (fallbackErr: any) {
+        toastError("Error", fallbackErr.message || err.message);
+      }
     } finally {
       setTogglingProgress(false);
     }

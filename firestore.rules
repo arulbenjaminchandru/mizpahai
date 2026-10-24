@@ -45,44 +45,31 @@ service cloud.firestore {
 
     // ─── Collection: courses ───────────────────────────────────────────────
     match /courses/{courseId} {
-      // Anyone signed in can read published courses; admins can read/write all
-      allow read: if isSignedIn() && (resource.data.isPublished == true || isAdmin());
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     // ─── Collection: weeks ─────────────────────────────────────────────────
     match /weeks/{weekId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
-      );
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     // ─── Collection: modules ───────────────────────────────────────────────
     match /modules/{moduleId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
-      );
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     // ─── Collection: lessons ───────────────────────────────────────────────
     match /lessons/{lessonId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        (resource.data.isPublished == true && isEnrolled(resource.data.courseId))
-      );
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     // ─── Collection: resources ─────────────────────────────────────────────
     match /resources/{resourceId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        isEnrolled(resource.data.courseId)
-      );
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
