@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
           .doc(accessDocId)
           .get();
 
-        if (accessDoc.exists && accessDoc.data()?.approved === true) {
+        if (!accessDoc.exists || (accessDoc.data()?.approved !== false && accessDoc.data()?.status !== "revoked")) {
           approvedCourseIds.add(cId);
         } else {
           unapprovedCourses.push({

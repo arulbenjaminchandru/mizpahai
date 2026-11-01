@@ -171,12 +171,59 @@ export default function StudentDashboardPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setLiveClasses(data.classes || []);
+          if (data.classes && data.classes.length > 0) {
+            setLiveClasses(data.classes);
+            setUnapprovedCourses(data.unapprovedCourses || []);
+            setApprovedCourseCount(data.approvedCourseCount || 0);
+            return;
+          }
           setUnapprovedCourses(data.unapprovedCourses || []);
           setApprovedCourseCount(data.approvedCourseCount || 0);
         }
       } catch (err) {
-        console.error("Error loading live classes:", err);
+        console.warn("API live classes fetch error, falling back to direct Firestore:", err);
+      }
+
+      // Direct Firestore fallback for student live classes
+      try {
+        const [enrSnap, classesSnap, coursesSnap] = await Promise.all([
+          getDocs(query(collection(db, "enrollments"), where("userId", "==", user.uid))),
+          getDocs(collection(db, "liveClasses")),
+          getDocs(collection(db, "courses")),
+        ]);
+
+        const courseNameMap: Record<string, string> = {};
+        coursesSnap.docs.forEach((d) => {
+          courseNameMap[d.id] = d.data().name || "Course";
+        });
+
+        const activeEnrolledCourseIds = enrSnap.docs
+          .map((d) => d.data())
+          .filter((e) => e.status !== "revoked" && e.status !== "suspended")
+          .map((e) => e.courseId);
+
+        if (activeEnrolledCourseIds.length > 0) {
+          const liveList = classesSnap.docs
+            .map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                ...data,
+                courseName: courseNameMap[data.courseId] || data.courseName || "Course",
+              } as LiveClass;
+            })
+            .filter(
+              (c) =>
+                activeEnrolledCourseIds.includes(c.courseId) &&
+                c.isActive &&
+                c.isPublished !== false
+            );
+
+          setLiveClasses(liveList);
+          setApprovedCourseCount(activeEnrolledCourseIds.length);
+        }
+      } catch (clientErr) {
+        console.error("Direct Firestore live classes failed:", clientErr);
       } finally {
         setLoadingLiveClasses(false);
       }

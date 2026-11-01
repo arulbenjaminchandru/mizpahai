@@ -202,7 +202,7 @@ export default function AdminStudentsPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to generate Excel export");
+        throw new Error("Failed to generate Excel export");
       }
 
       const blob = await res.blob();
@@ -222,7 +222,73 @@ export default function AdminStudentsPage() {
       );
     } catch (err: any) {
       console.error("Export error:", err);
-      toastError("Export Failed", err.message || "Could not export registrations");
+      try {
+        const XLSX = await import("xlsx");
+        const excelRows = students.map((s, index) => {
+          const uEnrollments = enrollmentsMap[s.uid] || [];
+          const hasEnrollments = uEnrollments.length > 0;
+          const enrolledCoursesStr = hasEnrollments
+            ? uEnrollments
+                .map((e: any) => {
+                  const c = courses.find((course) => course.id === e.courseId);
+                  return c?.name || e.courseId;
+                })
+                .join(", ")
+            : s.selectedCourseId
+            ? courses.find((c) => c.id === s.selectedCourseId)?.name || "Interest"
+            : "None";
+
+          let regDateStr = "N/A";
+          if (s.createdAt) {
+            if (typeof (s.createdAt as any).toDate === "function") {
+              regDateStr = (s.createdAt as any).toDate().toLocaleString();
+            } else if ((s.createdAt as any).seconds) {
+              regDateStr = new Date((s.createdAt as any).seconds * 1000).toLocaleString();
+            }
+          }
+
+          return {
+            "S.No": index + 1,
+            "Registration ID": s.uid,
+            "Full Name": s.displayName || "Student",
+            "Email Address": s.email || "",
+            "Mobile Number": s.phoneNumber || "Not Provided",
+            "Selected / Enrolled Course": enrolledCoursesStr,
+            "Registration Date": regDateStr,
+            "Enrollment Status": hasEnrollments ? "Active Student" : "Registered (Pending Activation)",
+            "Course Access Status": hasEnrollments
+              ? `Unlocked (${uEnrollments.length} Course${uEnrollments.length > 1 ? "s" : ""})`
+              : "No Courses Unlocked",
+            "Profile Completion Status": s.phoneNumber ? "Completed" : "Incomplete (Missing Mobile)",
+          };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(excelRows);
+        worksheet["!cols"] = [
+          { wch: 6 },
+          { wch: 32 },
+          { wch: 24 },
+          { wch: 30 },
+          { wch: 18 },
+          { wch: 34 },
+          { wch: 22 },
+          { wch: 28 },
+          { wch: 24 },
+          { wch: 26 },
+        ];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
+        const today = new Date().toISOString().substring(0, 10);
+        XLSX.writeFile(workbook, `TibenAI_Registrations_${today}.xlsx`);
+
+        toastSuccess(
+          "Excel Export Complete",
+          "Student registration workbook downloaded successfully."
+        );
+      } catch (fallbackErr: any) {
+        console.error("Client fallback export error:", fallbackErr);
+        toastError("Export Failed", err.message || "Could not export registrations");
+      }
     } finally {
       setIsExporting(false);
     }

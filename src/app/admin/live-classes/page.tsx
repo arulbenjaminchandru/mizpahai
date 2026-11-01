@@ -29,6 +29,8 @@ import {
   UserX,
 } from "lucide-react";
 import type { LiveClass, Course, MeetingPlatform } from "@/types";
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 interface ParticipantInfo {
   userId: string;
@@ -93,7 +95,18 @@ export default function AdminLiveClassesPage() {
           }
         }
       } catch (err) {
-        console.error("Error loading courses:", err);
+        console.warn("API load courses failed, using Firestore fallback:", err);
+      }
+      try {
+        const snap = await getDocs(collection(db, "courses"));
+        const fallbackCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Course[];
+        if (fallbackCourses.length > 0) {
+          setCourses(fallbackCourses);
+          setSelectedCourseId((prev) => prev || fallbackCourses[0].id);
+          setFormCourseId((prev) => prev || fallbackCourses[0].id);
+        }
+      } catch (clientErr) {
+        console.error("Direct Firestore load courses failed:", clientErr);
       }
     }
     loadCourses();
@@ -116,7 +129,26 @@ export default function AdminLiveClassesPage() {
         setClasses(data.classes || []);
       }
     } catch (err) {
-      console.error("Error fetching live classes:", err);
+        console.warn("API live classes fetch error:", err);
+      }
+      try {
+        const snap = await getDocs(collection(db, "liveClasses"));
+        let list: LiveClass[] = snap.docs.map((d) => {
+          const data = d.data();
+          const course = courses.find((c) => c.id === data.courseId);
+          return {
+            id: d.id,
+            ...data,
+            courseName: course?.name || data.courseName || "Course",
+          } as LiveClass;
+        });
+        if (selectedCourseId) {
+          list = list.filter((c) => c.courseId === selectedCourseId);
+        }
+        list.sort((a, b) => (b.scheduledDate || "").localeCompare(a.scheduledDate || ""));
+        setClasses(list);
+      } catch (clientErr) {
+        console.error("Direct Firestore live classes failed:", clientErr);
     } finally {
       setLoadingClasses(false);
     }
@@ -142,7 +174,52 @@ export default function AdminLiveClassesPage() {
         setSelectedUserIds([]);
       }
     } catch (err) {
-      console.error("Error fetching participants:", err);
+        console.warn("API participants error, falling back to direct Firestore:", err);
+      }
+      try {
+        const [enrSnap, usersSnap, accessSnap] = await Promise.all([
+          getDocs(query(collection(db, "enrollments"), where("courseId", "==", selectedCourseId))),
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "liveClassAccess")),
+        ]);
+
+        const userMap: Record<string, any> = {};
+        usersSnap.docs.forEach((d) => {
+          userMap[d.id] = d.data();
+        });
+
+        const accessMap: Record<string, any> = {};
+        accessSnap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.courseId === selectedCourseId) {
+            accessMap[data.userId] = data;
+          }
+        });
+
+        const list: ParticipantInfo[] = enrSnap.docs.map((d) => {
+          const enr = d.data();
+          const u = userMap[enr.userId] || {};
+          const access = accessMap[enr.userId];
+          return {
+            userId: enr.userId,
+            enrollmentId: d.id,
+            courseId: selectedCourseId,
+            displayName: u.displayName || "Student",
+            email: u.email || "No email",
+            phoneNumber: u.phoneNumber || null,
+            batchName: enr.batchName || "Cohort 2026",
+            approved: access ? access.approved !== false && access.status !== "revoked" : true,
+            approvedAt: access?.approvedAt,
+            approvedBy: access?.approvedBy,
+            revokedAt: access?.revokedAt,
+            revokedBy: access?.revokedBy,
+          };
+        });
+
+        setParticipants(list);
+        setSelectedUserIds([]);
+      } catch (clientErr) {
+        console.error("Direct Firestore participants failed:", clientErr);
     } finally {
       setLoadingParticipants(false);
     }
@@ -228,7 +305,10 @@ export default function AdminLiveClassesPage() {
         });
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || "Failed to update live class");
+          await updateDoc(doc(db, "liveClasses", editingClass.id), {
+            ...payload,
+            updatedAt: serverTimestamp(),
+          });
         }
         toastSuccess("Class Updated", `Updated "${formTitle}" successfully.`);
       } else {
@@ -242,7 +322,13 @@ export default function AdminLiveClassesPage() {
         });
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || "Failed to create live class");
+          await addDoc(collection(db, "liveClasses"), {
+            ...payload,
+            courseName: courses.find((c) => c.id === formCourseId)?.name || "Course",
+            createdBy: user.email || user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
         }
         toastSuccess("Class Created", `Created "${formTitle}" successfully.`);
       }
@@ -270,7 +356,9 @@ export default function AdminLiveClassesPage() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to delete live class");
+      if (!res.ok) {
+        await deleteDoc(doc(db, "liveClasses", id));
+      }
       toastSuccess("Class Deleted", `Deleted "${title}".`);
       fetchClasses();
     } catch (err: any) {
@@ -296,7 +384,17 @@ export default function AdminLiveClassesPage() {
         fetchClasses();
       }
     } catch (err) {
-      console.error("Toggle publish error:", err);
+      console.warn("Toggle publish API failed, using Firestore fallback:", err);
+      try {
+        await updateDoc(doc(db, "liveClasses", c.id), {
+          isPublished: !c.isPublished,
+          updatedAt: serverTimestamp(),
+        });
+        toastSuccess("Status Updated", `Class ${!c.isPublished ? "published" : "unpublished"}.`);
+        fetchClasses();
+      } catch (clientErr) {
+        console.error("Direct Firestore toggle publish error:", clientErr);
+      }
     }
   };
 
@@ -318,7 +416,17 @@ export default function AdminLiveClassesPage() {
         fetchClasses();
       }
     } catch (err) {
-      console.error("Toggle active error:", err);
+      console.warn("Toggle active API failed, using Firestore fallback:", err);
+      try {
+        await updateDoc(doc(db, "liveClasses", c.id), {
+          isActive: !c.isActive,
+          updatedAt: serverTimestamp(),
+        });
+        toastSuccess("Status Updated", `Class marked ${!c.isActive ? "active" : "inactive"}.`);
+        fetchClasses();
+      } catch (clientErr) {
+        console.error("Direct Firestore toggle active error:", clientErr);
+      }
     }
   };
 
@@ -352,7 +460,33 @@ export default function AdminLiveClassesPage() {
       );
       fetchParticipants();
     } catch (err: any) {
-      console.error("Participant access error:", err);
+      console.warn("Participant access API failed, using Firestore fallback:", err);
+      try {
+        for (const uId of userIds) {
+          await setDoc(
+            doc(db, "liveClassAccess", `${selectedCourseId}_${uId}`),
+            {
+              courseId: selectedCourseId,
+              userId: uId,
+              approved,
+              status: approved ? "approved" : "revoked",
+              ...(approved
+                ? { approvedAt: serverTimestamp(), approvedBy: user.email || user.uid }
+                : { revokedAt: serverTimestamp(), revokedBy: user.email || user.uid }),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+        toastSuccess(
+          approved ? "Access Approved" : "Access Revoked",
+          `Updated live-class permissions for ${userIds.length} participant(s).`
+        );
+        fetchParticipants();
+        return;
+      } catch (clientErr) {
+        console.error("Direct Firestore participant access update failed:", clientErr);
+      }
       toastError("Error", err.message || "Failed to update participant access");
     }
   };

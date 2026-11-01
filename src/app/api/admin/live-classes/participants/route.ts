@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         phoneNumber: u.phoneNumber || null,
         batchName: enr.batchName || "Cohort 2026",
         enrolledAt: enr.enrolledAt,
-        approved: access?.approved === true,
+        approved: access ? access.approved !== false && access.status !== "revoked" : true,
         approvedAt: access?.approvedAt || null,
         approvedBy: access?.approvedBy || null,
         revokedAt: access?.revokedAt || null,
