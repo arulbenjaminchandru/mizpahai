@@ -11,6 +11,11 @@ export interface User {
   email: string;
   displayName: string;
   photoURL: string | null;
+  phoneNumber?: string | null;
+  countryCode?: string | null;
+  selectedCourseId?: string | null;
+  instagramFollowed?: boolean;
+  linkedinFollowed?: boolean;
   role: UserRole;
   status: UserStatus;
   createdAt: Timestamp;
@@ -143,3 +148,46 @@ export interface LessonProgress {
   completed: boolean;
   completedAt: Timestamp | null;
 }
+
+// ─── Live Classes ────────────────────────────────────────────────────────────
+
+export type MeetingPlatform =
+  | "google-meet"
+  | "microsoft-teams"
+  | "zoom"
+  | "other";
+
+export interface LiveClass {
+  id: string;
+  courseId: string;
+  courseName?: string;
+  title: string;
+  description?: string;
+  meetingUrl: string;
+  meetingPlatform: MeetingPlatform;
+  scheduledDate: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime?: string; // HH:MM
+  isActive: boolean;
+  isPublished: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ─── Live Class Participants / Course Access ─────────────────────────────────
+
+export interface LiveClassParticipant {
+  id: string;
+  courseId: string;
+  userId: string;
+  studentEmail: string;
+  studentName: string;
+  approved: boolean;
+  approvedAt?: Timestamp | null;
+  approvedBy?: string | null;
+  revokedAt?: Timestamp | null;
+  revokedBy?: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+

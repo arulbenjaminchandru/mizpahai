@@ -28,6 +28,9 @@ import {
   BookOpen,
   Plus,
   Loader2,
+  FileSpreadsheet,
+  Phone,
+  PhoneOff,
 } from "lucide-react";
 import type { User, Course } from "@/types";
 
@@ -39,7 +42,9 @@ export default function AdminStudentsPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrollmentsMap, setEnrollmentsMap] = useState<Record<string, any[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileFilter, setMobileFilter] = useState<"all" | "with_mobile" | "missing_mobile">("all");
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Direct assign course modal state
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
@@ -87,7 +92,8 @@ export default function AdminStudentsPage() {
         fallbackUsers = fallbackUsers.filter(
           (s) =>
             s.email?.toLowerCase().includes(q) ||
-            s.displayName?.toLowerCase().includes(q)
+            s.displayName?.toLowerCase().includes(q) ||
+            s.phoneNumber?.includes(q)
         );
       }
       setStudents(fallbackUsers);
@@ -117,7 +123,8 @@ export default function AdminStudentsPage() {
           fallbackUsers = fallbackUsers.filter(
             (s) =>
               s.email?.toLowerCase().includes(q) ||
-              s.displayName?.toLowerCase().includes(q)
+              s.displayName?.toLowerCase().includes(q) ||
+              s.phoneNumber?.includes(q)
           );
         }
         setStudents(fallbackUsers);
@@ -156,19 +163,6 @@ export default function AdminStudentsPage() {
       }
     } catch (err) {
       console.error("Error fetching courses:", err);
-      try {
-        const snap = await getDocs(collection(db, "courses"));
-        const fallbackList = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Course[];
-        setCourses(fallbackList);
-        if (fallbackList.length > 0) {
-          setSelectedCourseId(fallbackList[0].id);
-        }
-      } catch (clientErr) {
-        console.error("Direct Firestore load failed:", clientErr);
-      }
     }
   };
 
@@ -176,6 +170,47 @@ export default function AdminStudentsPage() {
     fetchStudents();
     fetchCourses();
   }, [user]);
+
+  const handleExportExcel = async () => {
+    if (!user) return;
+    setIsExporting(true);
+    try {
+      const token = await user.getIdToken();
+      let exportUrl = `/api/admin/export/registrations?search=${encodeURIComponent(searchQuery)}`;
+      if (mobileFilter === "with_mobile") exportUrl += "&hasMobile=true";
+      if (mobileFilter === "missing_mobile") exportUrl += "&hasMobile=false";
+
+      const res = await fetch(exportUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to generate Excel export");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const today = new Date().toISOString().substring(0, 10);
+      a.download = `TibenAI_Registrations_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toastSuccess(
+        "Excel Export Complete",
+        "Student registration workbook downloaded successfully."
+      );
+    } catch (err: any) {
+      console.error("Export error:", err);
+      toastError("Export Failed", err.message || "Could not export registrations");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleToggleStatus = async (student: User) => {
     if (!user) return;
@@ -309,6 +344,14 @@ export default function AdminStudentsPage() {
     }
   };
 
+  // Filter students based on mobile number status
+  const filteredStudents = students.filter((st) => {
+    const hasPhone = Boolean(st.phoneNumber && st.phoneNumber.trim().length > 0);
+    if (mobileFilter === "with_mobile") return hasPhone;
+    if (mobileFilter === "missing_mobile") return !hasPhone;
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -320,35 +363,64 @@ export default function AdminStudentsPage() {
             Review registered learners, manage enrollment access, and toggle suspensions.
           </p>
         </div>
+
+        <Button
+          onClick={handleExportExcel}
+          disabled={isExporting}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs shadow-sm"
+        >
+          {isExporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileSpreadsheet className="h-4 w-4" />
+          )}
+          <span>Export to Excel (.xlsx)</span>
+        </Button>
       </div>
 
-      {/* Search Filter */}
+      {/* Search & Filter Toolbar */}
       <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 shadow-sm">
         <CardContent className="pt-6">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              fetchStudents();
-            }}
-            className="flex gap-2"
-          >
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
-              <Input
-                type="text"
-                placeholder="Search by student name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 dark:bg-slate-800/80"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs"
+          <div className="flex flex-col sm:flex-row gap-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                fetchStudents();
+              }}
+              className="flex-1 flex gap-2"
             >
-              Search
-            </Button>
-          </form>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+                <Input
+                  type="text"
+                  placeholder="Search by student name, email, or mobile..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-slate-50 dark:bg-slate-800/80"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs"
+              >
+                Search
+              </Button>
+            </form>
+
+            <select
+              value={mobileFilter}
+              onChange={(e) => setMobileFilter(e.target.value as any)}
+              className="h-10 px-3 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-teal-500 shrink-0"
+            >
+              <option value="all">All Profiles ({students.length})</option>
+              <option value="with_mobile">
+                With Mobile ({students.filter((s) => s.phoneNumber && s.phoneNumber.trim().length > 0).length})
+              </option>
+              <option value="missing_mobile">
+                Missing Mobile ({students.filter((s) => !s.phoneNumber || s.phoneNumber.trim().length === 0).length})
+              </option>
+            </select>
+          </div>
         </CardContent>
       </Card>
 
@@ -359,7 +431,7 @@ export default function AdminStudentsPage() {
             <div>
               <CardTitle className="text-base text-slate-900 dark:text-white">Registered Accounts</CardTitle>
               <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
-                Total accounts found: {students.length}
+                Showing {filteredStudents.length} of {students.length} accounts
               </CardDescription>
             </div>
           </div>
@@ -370,19 +442,19 @@ export default function AdminStudentsPage() {
               <div className="h-14 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
               <div className="h-14 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
             </div>
-          ) : students.length === 0 ? (
+          ) : filteredStudents.length === 0 ? (
             <div className="p-8 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
               <Users className="h-8 w-8 text-slate-400 dark:text-slate-600 mx-auto" />
-              <p className="text-sm text-slate-600 dark:text-slate-400">No students found matching your query.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">No students found matching your criteria.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
-              {students.map((st) => (
+              {filteredStudents.map((st) => (
                 <div
                   key={st.uid}
                   className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
                 >
-                  <div className="space-y-0.5 min-w-0">
+                  <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900 dark:text-white text-sm">
                         {st.displayName || "Learner"}
@@ -400,7 +472,24 @@ export default function AdminStudentsPage() {
                         {st.status || "active"}
                       </Badge>
                     </div>
-                    <p className="text-slate-600 dark:text-slate-400">{st.email}</p>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-600 dark:text-slate-400">
+                      <span>{st.email}</span>
+                      <span className="text-slate-400">•</span>
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-teal-500" />
+                        {st.phoneNumber ? (
+                          <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
+                            {st.phoneNumber}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium text-[11px]">
+                            Missing Mobile
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                       UID: {st.uid}
                     </p>
@@ -450,12 +539,12 @@ export default function AdminStudentsPage() {
                     {st.role !== "admin" && (
                       <Button
                         size="sm"
-                        variant={st.status === "suspended" ? "outline" : "ghost"}
+                        variant={st.status === "suspended" ? "default" : "outline"}
                         onClick={() => handleToggleStatus(st)}
-                        className={`text-xs h-8 gap-1 ${
+                        className={`text-xs h-8 gap-1.5 ${
                           st.status === "suspended"
-                            ? "text-emerald-400 border-emerald-500/30"
-                            : "text-red-400 hover:text-red-300 hover:bg-red-950/20"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            : "border-red-500/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
                         }`}
                       >
                         {st.status === "suspended" ? (
@@ -479,52 +568,65 @@ export default function AdminStudentsPage() {
         </CardContent>
       </Card>
 
-      {/* Assign Course Dialog */}
+      {/* Direct Assign Course Modal */}
       <Dialog
-        open={isAssignModalOpen}
+        isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         title="Direct Course Assignment"
-        description={`Grant "${selectedStudent?.displayName || selectedStudent?.email}" access to a curriculum without an enrollment code.`}
       >
-        <form onSubmit={handleAssignCourse} className="space-y-4 mt-2">
-          <div className="space-y-1">
+        <form onSubmit={handleAssignCourse} className="space-y-4 pt-2">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            Directly enroll{" "}
+            <span className="font-semibold text-slate-900 dark:text-white">
+              {selectedStudent?.displayName || selectedStudent?.email}
+            </span>{" "}
+            into a cohort curriculum.
+          </p>
+
+          <div className="space-y-1.5">
             <Label htmlFor="courseSelect" required>
-              Select Course
+              Select Course &amp; Cohort
             </Label>
             <select
               id="courseSelect"
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full h-10 px-3 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+              required
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.batchName || "Standard"})
+                  {c.name} ({c.batchName || "Batch 2026"})
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => setIsAssignModalOpen(false)}
+              disabled={isSubmitting}
+              className="text-xs"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold"
+              className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5"
             >
               {isSubmitting ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Assigning...
-                </span>
+                </>
               ) : (
-                "Confirm Assignment"
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  Confirm Enrollment
+                </>
               )}
             </Button>
           </div>

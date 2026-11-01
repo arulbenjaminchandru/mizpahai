@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/firebase/auth-context";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navbar } from "@/components/navigation/navbar";
 import { Footer } from "@/components/navigation/footer";
+import { UpdateMobileModal } from "@/components/profile/UpdateMobileModal";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,10 @@ import {
   KeyRound,
   ExternalLink,
   CheckCircle,
+  Phone,
+  PhoneCall,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -29,6 +34,7 @@ export default function ProfilePage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [courses, setCourses] = useState<Record<string, Course>>({});
   const [loading, setLoading] = useState(true);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchUserEnrollments() {
@@ -64,6 +70,32 @@ export default function ProfilePage() {
     fetchUserEnrollments();
   }, [user]);
 
+  // Format registration date
+  let regDateFormatted = "Active";
+  if (userProfile?.createdAt) {
+    try {
+      if (typeof (userProfile.createdAt as any).toDate === "function") {
+        regDateFormatted = (userProfile.createdAt as any).toDate().toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } else if ((userProfile.createdAt as any)._seconds) {
+        regDateFormatted = new Date(
+          (userProfile.createdAt as any)._seconds * 1000
+        ).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+    } catch {
+      regDateFormatted = "Enrolled";
+    }
+  }
+
+  const hasPhone = Boolean(userProfile?.phoneNumber && userProfile.phoneNumber.trim().length > 0);
+
   return (
     <AuthGuard>
       <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
@@ -75,7 +107,7 @@ export default function ProfilePage() {
               Student Profile &amp; Settings
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Manage your credentials, view course authorizations, and access enrollments.
+              Manage your credentials, view course authorizations, and update contact information.
             </p>
           </div>
 
@@ -94,30 +126,59 @@ export default function ProfilePage() {
                 <CardDescription className="text-xs break-all text-slate-500 dark:text-slate-400">
                   {user?.email}
                 </CardDescription>
-                <div className="pt-2 flex justify-center gap-2">
+                <div className="pt-2 flex flex-wrap justify-center gap-1.5">
                   <Badge variant={isAdmin ? "default" : "secondary"} className="uppercase text-[10px]">
                     {isAdmin ? "Administrator" : "Enrolled Student"}
                   </Badge>
-                  <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
-                    Active
+                  <Badge
+                    variant={hasPhone ? "outline" : "secondary"}
+                    className={`text-[10px] ${
+                      hasPhone
+                        ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10"
+                    }`}
+                  >
+                    {hasPhone ? "✓ Profile Complete" : "Mobile Pending"}
                   </Badge>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 pt-2 text-xs text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800">
+              <CardContent className="space-y-3.5 pt-2 text-xs text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
-                  <Mail className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                  <Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
                   <span className="truncate">{user?.email}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <Shield className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <span>UID: {user?.uid.substring(0, 12)}...</span>
+
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Phone className="h-4 w-4 text-teal-500 shrink-0" />
+                    <span className="truncate font-mono">
+                      {userProfile?.phoneNumber || "No mobile added"}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsPhoneModalOpen(true)}
+                    className="h-6 px-2 text-[11px] text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20"
+                  >
+                    Edit
+                  </Button>
                 </div>
+
                 <div className="flex items-center gap-2.5">
-                  <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <span>
-                    Enrolled Courses: {loading ? "..." : enrollments.length}
-                  </span>
+                  <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <span>Joined: {regDateFormatted}</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <Shield className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <span className="font-mono text-[11px]">UID: {user?.uid.substring(0, 12)}...</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <span>Enrolled Courses: {loading ? "..." : enrollments.length}</span>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
@@ -179,46 +240,42 @@ export default function ProfilePage() {
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
                         You have not redeemed any course enrollment code yet. Contact your TiBen AI Academy instructor to obtain your access code.
                       </p>
-                      <Link href="/redeem" className="inline-block pt-2">
-                        <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs">
-                          Redeem Enrollment Code
+                      <Link href="/redeem">
+                        <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 mt-2">
+                          <KeyRound className="h-3.5 w-3.5" />
+                          Redeem Code
                         </Button>
                       </Link>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-slate-200 dark:divide-slate-800">
                       {enrollments.map((enr) => {
                         const course = courses[enr.courseId];
                         return (
                           <div
                             key={enr.id}
-                            className="p-4 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40 hover:border-teal-500/40 dark:hover:border-slate-700 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                            className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                           >
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                                  {course?.name || "Data Horizon Course"}
+                                <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+                                  {course?.name || "Data Horizon Training"}
                                 </h4>
                                 <Badge variant="outline" className="text-[10px] text-teal-600 dark:text-teal-400 border-teal-500/30">
-                                  {enr.batchName || course?.batchName || "Active"}
+                                  {enr.batchName || course?.batchName || "Batch 2026"}
                                 </Badge>
                               </div>
                               <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1">
-                                {course?.description || "Curriculum & recordings active"}
+                                {course?.description || "Curriculum recordings, notebooks, and architectural diagrams."}
                               </p>
-                              <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
-                                <span>Instructor: {course?.instructorName || "Arul Benjamin · TiBen AI Academy"}</span>
-                                <span>•</span>
-                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                                  <CheckCircle className="h-3 w-3" />
-                                  Enrollment Confirmed
-                                </span>
-                              </div>
+                              <p className="text-[11px] text-slate-400">
+                                Instructor: {course?.instructorName || "Arul Benjamin"}
+                              </p>
                             </div>
 
-                            <Link href={`/courses/${enr.courseId}`}>
-                              <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-semibold text-xs gap-1.5 shrink-0">
-                                Open Course
+                            <Link href={`/courses/${enr.courseId}`} className="shrink-0">
+                              <Button size="sm" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5">
+                                Enter Classroom
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </Link>
@@ -229,31 +286,19 @@ export default function ProfilePage() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Guidelines Card */}
-              <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/50 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-sm text-slate-900 dark:text-white">Course Material &amp; Video Policy</CardTitle>
-                </CardHeader>
-                <CardContent className="text-xs text-slate-600 dark:text-slate-400 space-y-2">
-                  <p>
-                    • Video lectures are streamed securely via unlisted YouTube IFrame embeds for authorized cohort members.
-                  </p>
-                  <p>
-                    • Learning resources (code templates, slides, datasets) reside on Google Drive. Make sure your Google Account has been granted read permissions by TiBen AI Academy.
-                  </p>
-                  <p>
-                    • Do not redistribute or publish recordings or proprietary cohort assets. Violations result in immediate access revocation.
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </main>
 
         <Footer />
+
+        <UpdateMobileModal
+          isOpen={isPhoneModalOpen}
+          onClose={() => setIsPhoneModalOpen(false)}
+          initialPhone={userProfile?.phoneNumber}
+          initialCountryCode={userProfile?.countryCode || "+91"}
+        />
       </div>
     </AuthGuard>
   );
 }
-

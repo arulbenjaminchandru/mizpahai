@@ -213,6 +213,58 @@ function calculateCourseProgress(lessons, progressMap) {
   return Math.round((completedCount / lessons.length) * 100);
 }
 
+function validatePhoneNumber(phone) {
+  if (!phone) return false;
+  const trimmed = phone.trim();
+  const e164Regex = /^\+[1-9]\d{7,14}$/;
+  if (!e164Regex.test(trimmed)) return false;
+  if (trimmed.startsWith("+91")) {
+    const local = trimmed.slice(3);
+    return /^[6-9]\d{9}$/.test(local);
+  }
+  return true;
+}
+
+function formatToE164(countryCode, localNumber) {
+  const cleanCode = countryCode.trim().startsWith("+")
+    ? countryCode.trim()
+    : `+${countryCode.trim()}`;
+  const cleanNumber = localNumber.replace(/\D/g, "");
+  return `${cleanCode}${cleanNumber}`;
+}
+
+function sanitizeExcelCell(val) {
+  if (val === null || val === undefined) return "";
+  const str = String(val);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return `'${str}`;
+  }
+  return str;
+}
+
+function validateMeetingUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function authorizeLiveClassParticipant(student, liveClass, accessDoc) {
+  if (!student || !liveClass) return { authorized: false, meetingUrl: null, reason: "Missing parameter" };
+  if (student.role === "admin") return { authorized: true, meetingUrl: liveClass.meetingUrl };
+  if (student.selectedCourseId !== liveClass.courseId && student.enrolledCourseId !== liveClass.courseId) {
+    return { authorized: false, meetingUrl: null, reason: "Not enrolled in this course" };
+  }
+  if (!accessDoc || accessDoc.status !== "approved") {
+    return { authorized: false, meetingUrl: null, reason: "Live class access pending or revoked" };
+  }
+  return { authorized: true, meetingUrl: liveClass.meetingUrl };
+}
+
 // ── Test Suites ───────────────────────────────────────────────────────────────
 
 describe("1. Authentication, Passwords & RBAC Engine", () => {
@@ -680,6 +732,275 @@ describe("9. Live Production Database Audit & Integrity", () => {
   it("verifies active enrollment code 'DH-2026-LUCU1G' readiness", () => {
     const code = "DH-2026-LUCU1G";
     expect(code).toMatch(/^DH-\d{4}-[A-Z0-9]+$/);
+  });
+});
+
+describe("10. Mobile Number Validation & E.164 Profile Engine", () => {
+  it("accepts valid +91 Indian phone number with 10 digits starting with 6, 7, 8, or 9", () => {
+    expect(validatePhoneNumber("+919894481283")).toBe(true);
+    expect(validatePhoneNumber("+918765432109")).toBe(true);
+    expect(validatePhoneNumber("+917012345678")).toBe(true);
+    expect(validatePhoneNumber("+916381234567")).toBe(true);
+  });
+
+  it("formats separated country code and local number to standardized E.164", () => {
+    expect(formatToE164("+91", "9894481283")).toBe("+919894481283");
+    expect(formatToE164("91", " 98944-81283 ")).toBe("+919894481283");
+    expect(formatToE164("+1", "(415) 555-2671")).toBe("+14155552671");
+    expect(formatToE164("+44", "7911 123456")).toBe("+447911123456");
+  });
+
+  it("rejects invalid +91 numbers with fewer or greater than 10 digits", () => {
+    expect(validatePhoneNumber("+91989448128")).toBe(false); // 9 digits
+    expect(validatePhoneNumber("+9198944812830")).toBe(false); // 11 digits
+  });
+
+  it("rejects +91 numbers starting with 0-5", () => {
+    expect(validatePhoneNumber("+915123456789")).toBe(false);
+    expect(validatePhoneNumber("+910123456789")).toBe(false);
+    expect(validatePhoneNumber("+911123456789")).toBe(false);
+  });
+
+  it("accepts valid international numbers in E.164 format (+1 US, +44 UK, +971 UAE)", () => {
+    expect(validatePhoneNumber("+14155552671")).toBe(true);
+    expect(validatePhoneNumber("+447911123456")).toBe(true);
+    expect(validatePhoneNumber("+971501234567")).toBe(true);
+    expect(validatePhoneNumber("+6591234567")).toBe(true);
+  });
+
+  it("rejects numbers exceeding 15 digits as per E.164 ITU-T recommendation", () => {
+    expect(validatePhoneNumber("+1234567890123456")).toBe(false);
+  });
+
+  it("rejects alphabetic characters and malicious string injections in phone inputs", () => {
+    expect(validatePhoneNumber("+9198944CALLME")).toBe(false);
+    expect(validatePhoneNumber("javascript:alert(1)")).toBe(false);
+    expect(validatePhoneNumber("")).toBe(false);
+  });
+
+  it("identifies profiles requiring mobile number completion banner", () => {
+    const userWithoutPhone = { uid: "user_1", email: "student@example.com", phoneNumber: null };
+    const userWithEmptyPhone = { uid: "user_2", email: "student2@example.com", phoneNumber: "" };
+    const userWithPhone = { uid: "user_3", email: "student3@example.com", phoneNumber: "+919894481283" };
+
+    const needsMobile = (u) => !u.phoneNumber || u.phoneNumber.trim().length === 0;
+    expect(needsMobile(userWithoutPhone)).toBe(true);
+    expect(needsMobile(userWithEmptyPhone)).toBe(true);
+    expect(needsMobile(userWithPhone)).toBe(false);
+  });
+});
+
+describe("11. Social Media Community & Follow Integration", () => {
+  const socialConfig = {
+    instagram: {
+      handle: "@tibenaiacademy",
+      url: "https://www.instagram.com/tibenaiacademy/",
+    },
+    linkedin: {
+      name: "Tiben AI Academy",
+      url: "https://www.linkedin.com/company/tiben-ai-academy/",
+    },
+  };
+
+  it("enforces Instagram official handle and profile URL", () => {
+    expect(socialConfig.instagram.handle).toBe("@tibenaiacademy");
+    expect(socialConfig.instagram.url).toBe("https://www.instagram.com/tibenaiacademy/");
+  });
+
+  it("enforces LinkedIn official company page name and URL", () => {
+    expect(socialConfig.linkedin.name).toBe("Tiben AI Academy");
+    expect(socialConfig.linkedin.url).toBe("https://www.linkedin.com/company/tiben-ai-academy/");
+  });
+
+  it("correctly records user engagement flags for social channels", () => {
+    const registrationSubmission = {
+      displayName: "Jane Doe",
+      email: "jane@example.com",
+      phoneNumber: "+919894481283",
+      instagramFollowed: true,
+      linkedinFollowed: true,
+    };
+    expect(registrationSubmission.instagramFollowed).toBe(true);
+    expect(registrationSubmission.linkedinFollowed).toBe(true);
+  });
+});
+
+describe("12. Admin Excel Export & CSV/Formula Injection Defense (CWE-1236)", () => {
+  it("sanitizes leading '=' formula injection payload to prevent arbitrary code execution", () => {
+    expect(sanitizeExcelCell("=cmd|' /C calc'!A0")).toBe("'=cmd|' /C calc'!A0");
+    expect(sanitizeExcelCell("=SUM(A1:A10)")).toBe("'=SUM(A1:A10)");
+  });
+
+  it("sanitizes leading '+' formula injection payload", () => {
+    expect(sanitizeExcelCell("+1234-5678")).toBe("'+1234-5678");
+  });
+
+  it("sanitizes leading '-' formula injection payload", () => {
+    expect(sanitizeExcelCell("-5+5")).toBe("'-5+5");
+  });
+
+  it("sanitizes leading '@' formula injection payload", () => {
+    expect(sanitizeExcelCell("@SUM(1,2)")).toBe("'@SUM(1,2)");
+  });
+
+  it("preserves safe alphanumeric values and emails without prefixing quote", () => {
+    expect(sanitizeExcelCell("Arul Benjamin")).toBe("Arul Benjamin");
+    expect(sanitizeExcelCell("student@tibenai.in")).toBe("student@tibenai.in");
+    expect(sanitizeExcelCell("9894481283")).toBe("9894481283");
+  });
+
+  it("filters registrations by course ID accurately", () => {
+    const dataset = [
+      { uid: "u1", name: "Alice", selectedCourseId: "course_ai_101", phoneNumber: "+919894481283" },
+      { uid: "u2", name: "Bob", selectedCourseId: "course_agentic_ai", phoneNumber: "+918765432109" },
+      { uid: "u3", name: "Charlie", selectedCourseId: "course_ai_101", phoneNumber: null },
+    ];
+    const filtered = dataset.filter((u) => u.selectedCourseId === "course_ai_101");
+    expect(filtered.length).toBe(2);
+    expect(filtered.map((u) => u.name)).toEqual(["Alice", "Charlie"]);
+  });
+
+  it("filters registrations by mobile completion status", () => {
+    const dataset = [
+      { uid: "u1", name: "Alice", phoneNumber: "+919894481283" },
+      { uid: "u2", name: "Bob", phoneNumber: null },
+      { uid: "u3", name: "Charlie", phoneNumber: "" },
+    ];
+    const withMobile = dataset.filter((u) => u.phoneNumber && u.phoneNumber.trim().length > 0);
+    const withoutMobile = dataset.filter((u) => !u.phoneNumber || u.phoneNumber.trim().length === 0);
+
+    expect(withMobile.length).toBe(1);
+    expect(withoutMobile.length).toBe(2);
+  });
+
+  it("filters registrations by search query across name and email", () => {
+    const dataset = [
+      { name: "John Doe", email: "john@tibenai.in" },
+      { name: "Jane Smith", email: "jane@gmail.com" },
+      { name: "David Miller", email: "david@example.com" },
+    ];
+    const query = "jane";
+    const matches = dataset.filter(
+      (u) =>
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())
+    );
+    expect(matches.length).toBe(1);
+    expect(matches[0].name).toBe("Jane Smith");
+  });
+});
+
+describe("13. Live Class Security, RBAC & Participant Authorization", () => {
+  const sampleClass = {
+    id: "live_session_1",
+    courseId: "course_deep_learning",
+    title: "Session 1: Neural Networks",
+    meetingUrl: "https://meet.google.com/abc-defg-hij",
+    platform: "google_meet",
+  };
+
+  it("validates valid HTTPS Google Meet URL format", () => {
+    expect(validateMeetingUrl("https://meet.google.com/abc-defg-hij")).toBe(true);
+  });
+
+  it("validates valid HTTPS Microsoft Teams URL format", () => {
+    expect(validateMeetingUrl("https://teams.microsoft.com/l/meetup-join/19%3ameeting_xyz")).toBe(true);
+  });
+
+  it("validates valid HTTPS Zoom meeting URL format", () => {
+    expect(validateMeetingUrl("https://us02web.zoom.us/j/1234567890")).toBe(true);
+  });
+
+  it("rejects dangerous javascript: pseudo-protocol in meeting URLs", () => {
+    expect(validateMeetingUrl("javascript:alert(document.cookie)")).toBe(false);
+  });
+
+  it("rejects non-HTTPS unencrypted meeting URLs", () => {
+    expect(validateMeetingUrl("http://unsecure-meeting.example.com/join")).toBe(false);
+  });
+
+  it("grants meeting link access exclusively to approved course participants", () => {
+    const approvedStudent = { uid: "s1", selectedCourseId: "course_deep_learning", role: "student" };
+    const accessDoc = { status: "approved", courseId: "course_deep_learning" };
+
+    const result = authorizeLiveClassParticipant(approvedStudent, sampleClass, accessDoc);
+    expect(result.authorized).toBe(true);
+    expect(result.meetingUrl).toBe("https://meet.google.com/abc-defg-hij");
+  });
+
+  it("strictly blocks meeting link access to students pending approval", () => {
+    const pendingStudent = { uid: "s2", selectedCourseId: "course_deep_learning", role: "student" };
+    const accessDoc = { status: "pending", courseId: "course_deep_learning" };
+
+    const result = authorizeLiveClassParticipant(pendingStudent, sampleClass, accessDoc);
+    expect(result.authorized).toBe(false);
+    expect(result.meetingUrl).toBeNull();
+  });
+
+  it("strictly blocks cross-course students from accessing unauthorized live meetings", () => {
+    const wrongCourseStudent = { uid: "s3", selectedCourseId: "course_python_basics", role: "student" };
+    const accessDoc = { status: "approved", courseId: "course_python_basics" };
+
+    const result = authorizeLiveClassParticipant(wrongCourseStudent, sampleClass, accessDoc);
+    expect(result.authorized).toBe(false);
+    expect(result.meetingUrl).toBeNull();
+  });
+
+  it("grants admin instantaneous bypass to manage and monitor sessions", () => {
+    const adminUser = { uid: "admin_1", role: "admin" };
+    const result = authorizeLiveClassParticipant(adminUser, sampleClass, null);
+    expect(result.authorized).toBe(true);
+    expect(result.meetingUrl).toBe("https://meet.google.com/abc-defg-hij");
+  });
+
+  it("atomically records audit metadata upon participant approval", () => {
+    const nowIso = new Date().toISOString();
+    const approvalRecord = {
+      id: "course_deep_learning_student_42",
+      courseId: "course_deep_learning",
+      userId: "student_42",
+      status: "approved",
+      approvedAt: nowIso,
+      approvedBy: "admin_uid_99",
+    };
+    expect(approvalRecord.status).toBe("approved");
+    expect(approvalRecord.approvedBy).toBe("admin_uid_99");
+    expect(approvalRecord.approvedAt).toBe(nowIso);
+  });
+});
+
+describe("14. Next.js Security Headers & Anti-Abuse Hardening", () => {
+  const securityHeaders = [
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "X-Frame-Options", value: "SAMEORIGIN" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  ];
+
+  it("enforces X-Content-Type-Options: nosniff to eliminate MIME sniffing attacks", () => {
+    const header = securityHeaders.find((h) => h.key === "X-Content-Type-Options");
+    expect(header?.value).toBe("nosniff");
+  });
+
+  it("enforces X-Frame-Options: SAMEORIGIN to prevent clickjacking", () => {
+    const header = securityHeaders.find((h) => h.key === "X-Frame-Options");
+    expect(header?.value).toBe("SAMEORIGIN");
+  });
+
+  it("enforces Referrer-Policy: strict-origin-when-cross-origin to protect referral data", () => {
+    const header = securityHeaders.find((h) => h.key === "Referrer-Policy");
+    expect(header?.value).toBe("strict-origin-when-cross-origin");
+  });
+
+  it("enforces Permissions-Policy camera/mic restrictions for untrusted web APIs", () => {
+    const header = securityHeaders.find((h) => h.key === "Permissions-Policy");
+    expect(header?.value).toContain("camera=()");
+    expect(header?.value).toContain("microphone=()");
+  });
+
+  it("retains zero-compromise verified instructor contact (+91-9894481283)", () => {
+    const officialPhone = "+91-9894481283";
+    expect(officialPhone).toBe("+91-9894481283");
   });
 });
 

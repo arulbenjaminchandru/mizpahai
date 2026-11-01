@@ -42,8 +42,20 @@ interface AuthContextValue {
   signUpWithEmail: (
     email: string,
     password: string,
-    displayName: string
+    displayName: string,
+    phoneNumber?: string,
+    countryCode?: string,
+    selectedCourseId?: string,
+    instagramFollowed?: boolean,
+    linkedinFollowed?: boolean
   ) => Promise<void>;
+  /** Update user's mobile number and country code. */
+  updateUserPhoneNumber: (
+    phoneNumber: string,
+    countryCode?: string
+  ) => Promise<void>;
+  /** Force refresh current user profile. */
+  refreshProfile: () => Promise<void>;
   /** Sign out the current user. */
   signOut: () => Promise<void>;
   /** Send a password reset email. */
@@ -83,6 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: data.email || firebaseUser.email || "",
           displayName: data.displayName || firebaseUser.displayName || "",
           photoURL: data.photoURL ?? firebaseUser.photoURL ?? null,
+          phoneNumber: data.phoneNumber ?? null,
+          countryCode: data.countryCode ?? "+91",
+          selectedCourseId: data.selectedCourseId ?? null,
+          instagramFollowed: !!data.instagramFollowed,
+          linkedinFollowed: !!data.linkedinFollowed,
           role: data.role || "student",
           status: data.status || "active",
           createdAt: data.createdAt,
@@ -164,7 +181,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signUpWithEmail = useCallback(
-    async (email: string, password: string, displayName: string) => {
+    async (
+      email: string,
+      password: string,
+      displayName: string,
+      phoneNumber?: string,
+      countryCode?: string,
+      selectedCourseId?: string,
+      instagramFollowed?: boolean,
+      linkedinFollowed?: boolean
+    ) => {
       const result = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -180,6 +206,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         displayName,
         photoURL: null,
+        phoneNumber: phoneNumber || null,
+        countryCode: countryCode || "+91",
+        selectedCourseId: selectedCourseId || null,
+        instagramFollowed: !!instagramFollowed,
+        linkedinFollowed: !!linkedinFollowed,
         role: "student",
         status: "active",
         createdAt: serverTimestamp(),
@@ -190,6 +221,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [fetchUserData]
   );
+
+  const updateUserPhoneNumber = useCallback(
+    async (phoneNumber: string, countryCode = "+91") => {
+      if (!user) throw new Error("User must be authenticated to update phone number");
+      const userDocRef = doc(db, "users", user.uid);
+      await setDoc(
+        userDocRef,
+        {
+          phoneNumber,
+          countryCode,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      await fetchUserData(user);
+    },
+    [user, fetchUserData]
+  );
+
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await fetchUserData(user);
+    }
+  }, [user, fetchUserData]);
 
   const signOut = useCallback(async () => {
     await firebaseSignOut(auth);
@@ -212,6 +267,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
+    updateUserPhoneNumber,
+    refreshProfile,
     signOut,
     resetPassword,
   };

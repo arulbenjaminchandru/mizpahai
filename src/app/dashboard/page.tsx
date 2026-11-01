@@ -6,12 +6,13 @@ import { useAuth } from "@/lib/firebase/auth-context";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navbar } from "@/components/navigation/navbar";
 import { Footer } from "@/components/navigation/footer";
+import { UpdateMobileModal } from "@/components/profile/UpdateMobileModal";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Enrollment, Course, Lesson, LessonProgress } from "@/types";
+import type { Enrollment, Course, Lesson, LessonProgress, LiveClass } from "@/types";
 import {
   BookOpen,
   PlayCircle,
@@ -20,18 +21,33 @@ import {
   ArrowRight,
   Sparkles,
   Calendar,
+  Clock,
+  Video,
+  ExternalLink,
+  ShieldCheck,
+  Phone,
+  PhoneCall,
+  User as UserIcon,
+  AlertCircle,
   Layers,
   GraduationCap,
-  Clock,
 } from "lucide-react";
 
 export default function StudentDashboardPage() {
-  const { user, userProfile, isAdmin } = useAuth();
+  const { user, userProfile } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [courses, setCourses] = useState<Record<string, Course>>({});
   const [courseLessons, setCourseLessons] = useState<Record<string, Lesson[]>>({});
   const [progressMap, setProgressMap] = useState<Record<string, boolean>>({});
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [unapprovedCourses, setUnapprovedCourses] = useState<{ courseId: string; courseName: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLiveClasses, setLoadingLiveClasses] = useState(true);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+
+  // Check if mobile number is missing
+  const isMobileMissing =
+    !userProfile?.phoneNumber || userProfile.phoneNumber.trim().length === 0;
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -87,7 +103,27 @@ export default function StudentDashboardPage() {
       }
     }
 
+    async function fetchLiveClasses() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/live-classes", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLiveClasses(data.classes || []);
+          setUnapprovedCourses(data.unapprovedCourses || []);
+        }
+      } catch (err) {
+        console.error("Error loading live classes:", err);
+      } finally {
+        setLoadingLiveClasses(false);
+      }
+    }
+
     fetchDashboardData();
+    fetchLiveClasses();
   }, [user]);
 
   // Compute overall progress stats
@@ -122,6 +158,30 @@ export default function StudentDashboardPage() {
     }
   }
 
+  // Format registration date
+  let regDateFormatted = "Active";
+  if (userProfile?.createdAt) {
+    try {
+      if (typeof (userProfile.createdAt as any).toDate === "function") {
+        regDateFormatted = (userProfile.createdAt as any).toDate().toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } else if ((userProfile.createdAt as any)._seconds) {
+        regDateFormatted = new Date(
+          (userProfile.createdAt as any)._seconds * 1000
+        ).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+    } catch {
+      regDateFormatted = "Enrolled";
+    }
+  }
+
   return (
     <AuthGuard>
       <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 transition-colors">
@@ -145,11 +205,11 @@ export default function StudentDashboardPage() {
                 </span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Track your data engineering milestones, lectures, and hands-on lab resources.
+                Track your data engineering milestones, lectures, live interactive classes, and lab resources.
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Link href="/redeem">
                 <Button
                   size="sm"
@@ -161,6 +221,38 @@ export default function StudentDashboardPage() {
               </Link>
             </div>
           </div>
+
+          {/* ─── 5.2 PERSISTENT PROFILE COMPLETION BANNER ─────────────────────── */}
+          {isMobileMissing && (
+            <div className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent p-5 sm:p-6 shadow-xl shadow-amber-950/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+              <div className="flex items-start gap-3.5 max-w-2xl">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                  <Phone className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Complete Your Profile
+                    </h3>
+                    <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-500/10 uppercase">
+                      Action Required
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Your mobile number is missing from your profile. Please update your contact number to receive important course announcements, class updates, and other communications from Tiben AI Academy.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setIsPhoneModalOpen(true)}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs gap-1.5 shrink-0 shadow-md"
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                <span>Update Mobile Number</span>
+              </Button>
+            </div>
+          )}
 
           {/* Continue Learning Banner */}
           {nextLessonToWatch && (
@@ -201,32 +293,147 @@ export default function StudentDashboardPage() {
             </Card>
           )}
 
+          {/* ─── 7.4 / 8.4 MY LIVE CLASSES SECTION ───────────────────────────── */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Video className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                  My Live Classes
+                </h2>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono border-teal-500/30 text-teal-600 dark:text-teal-400">
+                Interactive Faculty Meets
+              </Badge>
+            </div>
+
+            {loadingLiveClasses ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="h-32 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                <div className="h-32 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              </div>
+            ) : liveClasses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {liveClasses.map((cls) => (
+                  <Card
+                    key={cls.id}
+                    className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 hover:border-teal-500/50 transition-all p-5 flex flex-col justify-between shadow-md"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase font-mono border-teal-500/40 text-teal-600 dark:text-teal-400 bg-teal-500/10"
+                        >
+                          {cls.meetingPlatform}
+                        </Badge>
+                        <span className="text-xs text-slate-500 font-medium">
+                          {cls.courseName}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {cls.title}
+                      </h3>
+
+                      {cls.description && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                          {cls.description}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-1">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5 text-teal-500" />
+                          {cls.scheduledDate}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-cyan-500" />
+                          {cls.startTime} {cls.endTime ? `- ${cls.endTime}` : ""}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Approved Participant
+                      </span>
+
+                      <a
+                        href={cls.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          size="sm"
+                          className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 shadow-sm"
+                        >
+                          <Video className="h-3.5 w-3.5" />
+                          <span>Join Live Class</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </a>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : unapprovedCourses.length > 0 ? (
+              <Card className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-6 text-center space-y-2">
+                <AlertCircle className="h-8 w-8 text-amber-500 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Live-class access has not yet been enabled for your account.
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                  Please contact the academy administrator or mentor Arul Benjamin (+91-9894481283) to verify your seat and approve interactive meeting access.
+                </p>
+              </Card>
+            ) : enrollments.length === 0 ? (
+              <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60 p-6 text-center space-y-2">
+                <Video className="h-8 w-8 text-slate-400 mx-auto" />
+                <p className="text-xs text-slate-500">
+                  You are not yet enrolled in any live cohorts. Redeem an access code above to join live weekend sessions.
+                </p>
+              </Card>
+            ) : (
+              <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60 p-6 text-center space-y-2">
+                <Clock className="h-8 w-8 text-teal-500 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  No Upcoming Live Classes Scheduled
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  New weekend cohort schedules and meeting links will appear here ahead of your next live interactive session.
+                </p>
+              </Card>
+            )}
+          </section>
+
           {/* Learning Progress Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="border-slate-800 bg-slate-900/80">
+            <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80 shadow-sm">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Enrolled Courses
                   </span>
-                  <BookOpen className="h-4 w-4 text-teal-400" />
+                  <BookOpen className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                 </div>
-                <div className="text-2xl font-bold text-white mt-2">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
                   {loading ? "..." : enrollments.length}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">Authorized cohorts</p>
               </CardContent>
             </Card>
 
-            <Card className="border-slate-800 bg-slate-900/80">
+            <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80 shadow-sm">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Lessons Completed
                   </span>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div className="text-2xl font-bold text-white mt-2">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
                   {loading ? "..." : `${totalCompletedLessons} / ${totalLessonsEnrolled}`}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
@@ -235,20 +442,20 @@ export default function StudentDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-800 bg-slate-900/80">
+            <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80 shadow-sm">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Curriculum Progress
                   </span>
-                  <Sparkles className="h-4 w-4 text-cyan-400" />
+                  <Sparkles className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 </div>
-                <div className="text-2xl font-bold text-white mt-2">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
                   {loading ? "..." : `${overallPercent}%`}
                 </div>
-                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2">
                   <div
-                    className="bg-teal-400 h-1.5 rounded-full transition-all duration-500"
+                    className="bg-teal-500 h-1.5 rounded-full transition-all duration-500"
                     style={{ width: `${overallPercent}%` }}
                   />
                 </div>
@@ -256,18 +463,79 @@ export default function StudentDashboardPage() {
             </Card>
           </div>
 
+          {/* ─── 5.5 MY PROFILE SECTION ───────────────────────────────────────── */}
+          <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 shadow-md">
+            <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                  <CardTitle className="text-base text-slate-900 dark:text-white">
+                    My Profile &amp; Contact Details
+                  </CardTitle>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsPhoneModalOpen(true)}
+                  className="h-8 text-xs border-teal-500/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20 gap-1.5"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  <span>{userProfile?.phoneNumber ? "Edit Mobile" : "Add Mobile"}</span>
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium">Full Name</span>
+                  <p className="font-semibold text-slate-900 dark:text-white text-sm">
+                    {userProfile?.displayName || user?.displayName || "Learner"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium">Email Address</span>
+                  <p className="font-mono text-slate-900 dark:text-white truncate">
+                    {user?.email}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium">Mobile Number</span>
+                  {userProfile?.phoneNumber ? (
+                    <p className="font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                      {userProfile.phoneNumber}
+                    </p>
+                  ) : (
+                    <p className="text-amber-600 dark:text-amber-400 font-semibold">
+                      Not Provided
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium">Registration Date</span>
+                  <p className="text-slate-700 dark:text-slate-300">
+                    {regDateFormatted}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Enrolled Courses Grid */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white tracking-tight">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 My Enrolled Courses
               </h2>
             </div>
 
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="h-44 rounded-xl bg-slate-800 animate-pulse" />
-                <div className="h-44 rounded-xl bg-slate-800 animate-pulse" />
+                <div className="h-44 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                <div className="h-44 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
               </div>
             ) : enrollments.length === 0 ? (
               <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/50 p-10 text-center space-y-4 shadow-sm">
@@ -369,8 +637,15 @@ export default function StudentDashboardPage() {
         </main>
 
         <Footer />
+
+        {/* Mobile Number Update Dialog */}
+        <UpdateMobileModal
+          isOpen={isPhoneModalOpen}
+          onClose={() => setIsPhoneModalOpen(false)}
+          initialPhone={userProfile?.phoneNumber}
+          initialCountryCode={userProfile?.countryCode || "+91"}
+        />
       </div>
     </AuthGuard>
   );
 }
-

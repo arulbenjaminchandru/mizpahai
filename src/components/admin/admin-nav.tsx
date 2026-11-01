@@ -9,6 +9,7 @@ import {
   KeyRound,
   ChevronRight,
   ShieldAlert,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,12 @@ const navItems = [
     title: "Courses & Content",
     href: "/admin/courses",
     icon: BookOpen,
+    exact: false,
+  },
+  {
+    title: "Live Classes",
+    href: "/admin/live-classes",
+    icon: Video,
     exact: false,
   },
   {

@@ -46,6 +46,37 @@ export function validateDriveUrl(url: string): boolean {
   return drivePattern.test(url);
 }
 
+/**
+ * Validates international phone number according to E.164 standards.
+ * Standard E.164 regex: starts with +, followed by 8 to 15 digits total.
+ * For +91 (India default), checks that it has exactly 10 digits (6-9 leading).
+ */
+export function validatePhoneNumber(phone: string): boolean {
+  if (!phone) return false;
+  const trimmed = phone.trim();
+  const e164Regex = /^\+[1-9]\d{7,14}$/;
+  if (!e164Regex.test(trimmed)) return false;
+
+  // Specific check for India (+91)
+  if (trimmed.startsWith("+91")) {
+    const local = trimmed.slice(3);
+    return /^[6-9]\d{9}$/.test(local);
+  }
+
+  return true;
+}
+
+/**
+ * Formats a country code and local phone number into standard E.164 format.
+ */
+export function formatToE164(countryCode: string, localNumber: string): string {
+  const cleanCode = countryCode.trim().startsWith("+")
+    ? countryCode.trim()
+    : `+${countryCode.trim()}`;
+  const cleanNumber = localNumber.replace(/\D/g, "");
+  return `${cleanCode}${cleanNumber}`;
+}
+
 // ─── Auth Schemas ────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({
@@ -72,6 +103,18 @@ export const registerSchema = z
       .string()
       .min(1, "Email is required")
       .email("Please enter a valid email address"),
+    countryCode: z.string().default("+91").optional(),
+    phoneNumber: z
+      .string()
+      .optional()
+      .refine((val) => {
+        if (!val) return true;
+        const formatted = val.startsWith("+") ? val : `+91${val.replace(/\D/g, "")}`;
+        return validatePhoneNumber(formatted);
+      }, "Please enter a valid mobile number in E.164 format"),
+    selectedCourseId: z.string().optional(),
+    instagramFollowed: z.boolean().optional(),
+    linkedinFollowed: z.boolean().optional(),
     password: z
       .string()
       .min(1, "Password is required")
@@ -88,6 +131,61 @@ export const registerSchema = z
   });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+/**
+ * Strict schema for student onboarding where mobile number is mandatory.
+ */
+export const studentRegisterSchema = z
+  .object({
+    displayName: z
+      .string()
+      .min(1, "Display name is required")
+      .min(2, "Display name must be at least 2 characters")
+      .max(50, "Display name must be at most 50 characters"),
+    email: z
+      .string()
+      .min(1, "Email is required")
+      .email("Please enter a valid email address"),
+    countryCode: z.string().min(1, "Country code is required"),
+    phoneNumber: z
+      .string()
+      .min(1, "Mobile number is required")
+      .refine((val) => {
+        const formatted = val.startsWith("+") ? val : `+91${val.replace(/\D/g, "")}`;
+        return validatePhoneNumber(formatted);
+      }, "Please enter a valid 10-digit mobile number or international phone number"),
+    selectedCourseId: z.string().optional(),
+    instagramFollowed: z.boolean().optional(),
+    linkedinFollowed: z.boolean().optional(),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+      ),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export type StudentRegisterFormData = z.infer<typeof studentRegisterSchema>;
+
+export const profilePhoneUpdateSchema = z.object({
+  countryCode: z.string().min(1, "Country code is required").default("+91"),
+  phoneNumber: z
+    .string()
+    .min(1, "Mobile number is required")
+    .refine((val) => {
+      const formatted = val.startsWith("+") ? val : `+91${val.replace(/\D/g, "")}`;
+      return validatePhoneNumber(formatted);
+    }, "Please enter a valid 10-digit mobile number or international phone number in E.164 format"),
+});
+
+export type ProfilePhoneUpdateFormData = z.infer<typeof profilePhoneUpdateSchema>;
 
 // ─── Course Schema ───────────────────────────────────────────────────────────
 
@@ -283,3 +381,55 @@ export const enrollmentRedemptionSchema = z.object({
 export type EnrollmentRedemptionFormData = z.infer<
   typeof enrollmentRedemptionSchema
 >;
+
+// ─── Live Class Schemas ──────────────────────────────────────────────────────
+
+export const liveClassSchema = z.object({
+  courseId: z.string().min(1, "Course selection is required"),
+  title: z
+    .string()
+    .min(1, "Class title is required")
+    .max(150, "Class title must be at most 150 characters"),
+  description: z.string().max(1000).optional().default(""),
+  meetingUrl: z
+    .string()
+    .min(1, "Meeting URL is required")
+    .url("Please enter a valid URL")
+    .refine((url) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" || parsed.protocol === "http:";
+      } catch {
+        return false;
+      }
+    }, "Meeting URL must start with https:// or http://")
+    .refine(
+      (url) => !url.trim().toLowerCase().startsWith("javascript:"),
+      "Unsafe URL scheme detected (javascript: is prohibited)"
+    ),
+  meetingPlatform: z.enum(["google-meet", "microsoft-teams", "zoom", "other"], {
+    message: "Please select a valid meeting platform",
+  }),
+  scheduledDate: z
+    .string()
+    .min(1, "Scheduled date is required")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  startTime: z
+    .string()
+    .min(1, "Start time is required")
+    .regex(/^\d{1,2}:\d{2}(\s*(AM|PM|am|pm))?$/, "Time must be valid (e.g. 10:00 or 10:00 AM)"),
+  endTime: z.string().optional().default(""),
+  isActive: z.boolean().default(true),
+  isPublished: z.boolean().default(true),
+});
+
+export type LiveClassFormData = z.infer<typeof liveClassSchema>;
+
+export const liveClassApprovalSchema = z.object({
+  courseId: z.string().min(1, "Course ID is required"),
+  userIds: z.array(z.string().min(1)).min(1, "At least one participant must be selected"),
+  approved: z.boolean(),
+});
+
+export type LiveClassApprovalData = z.infer<typeof liveClassApprovalSchema>;
+
