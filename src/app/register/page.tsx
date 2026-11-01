@@ -382,7 +382,7 @@ export default function RegisterPage() {
                 {/* ─── Social Media Follow Sections ───────────────────────────────── */}
                 <div className="pt-2 space-y-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Connect With Us (Optional)
+                    Connect With Us
                   </span>
 
                   {/* 1. Instagram Follow Card */}
