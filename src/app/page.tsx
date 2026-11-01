@@ -88,37 +88,43 @@ export default function HomePage() {
   useEffect(() => {
     async function loadCourses() {
       setCoursesLoading(true);
+
+      // 1. Direct Firestore client load (fast, resilient, uses deployed rules)
+      try {
+        const q = query(collection(db, "courses"), where("isPublished", "==", true));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
+          setCourses(list);
+          setCoursesLoading(false);
+          return;
+        } else {
+          // If query with filter returns empty, fallback to fetching all and filtering
+          const allSnap = await getDocs(collection(db, "courses"));
+          const list = allSnap.docs
+            .map((d) => ({ id: d.id, ...d.data() }) as Course)
+            .filter((c) => c.isPublished);
+          if (list.length > 0) {
+            setCourses(list);
+            setCoursesLoading(false);
+            return;
+          }
+        }
+      } catch (clientErr) {
+        console.warn("Direct Firestore load courses:", clientErr);
+      }
+
+      // 2. API fallback
       try {
         const res = await fetch("/api/courses");
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.courses) && data.courses.length > 0) {
             setCourses(data.courses);
-          } else {
-            const snap = await getDocs(collection(db, "courses"));
-            const list = snap.docs
-              .map((d) => ({ id: d.id, ...d.data() }) as Course)
-              .filter((c) => c.isPublished);
-            setCourses(list);
           }
-        } else {
-          const snap = await getDocs(collection(db, "courses"));
-          const list = snap.docs
-            .map((d) => ({ id: d.id, ...d.data() }) as Course)
-            .filter((c) => c.isPublished);
-          setCourses(list);
         }
-      } catch (err) {
-        console.warn("API load courses error, using direct Firestore fallback:", err);
-        try {
-          const snap = await getDocs(collection(db, "courses"));
-          const list = snap.docs
-            .map((d) => ({ id: d.id, ...d.data() }) as Course)
-            .filter((c) => c.isPublished);
-          setCourses(list);
-        } catch (clientErr) {
-          console.error("Direct Firestore load courses failed:", clientErr);
-        }
+      } catch (apiErr) {
+        console.warn("API load courses error:", apiErr);
       } finally {
         setCoursesLoading(false);
       }

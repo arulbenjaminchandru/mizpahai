@@ -47,7 +47,7 @@ service cloud.firestore {
 
     // ─── Collection: courses ───────────────────────────────────────────────
     match /courses/{courseId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -115,7 +115,7 @@ service cloud.firestore {
 
     // ─── Collection: settings ──────────────────────────────────────────────
     match /settings/{settingId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
