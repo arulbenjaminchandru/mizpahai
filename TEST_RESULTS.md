@@ -1,6 +1,6 @@
 # TiBen AI Academy — Comprehensive Quality Assurance & Scalability Audit
 
-**Execution Date:** 2026-11-01T15:38:38.647Z  
+**Execution Date:** 2026-11-01T16:06:29.271Z  
 **Platform Version:** 1.0.0 (Production Candidate)  
 **Total Test Cases:** 132  
 **Passed:** 132  
@@ -57,12 +57,12 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | accepts strong passwords with uppercase, lowercase, and digits | 0ms |
+| ✅ PASS | accepts strong passwords with uppercase, lowercase, and digits | 1ms |
 | ✅ PASS | rejects passwords missing uppercase letters | 0ms |
 | ✅ PASS | rejects passwords missing lowercase letters | 0ms |
 | ✅ PASS | rejects passwords missing numerical digits | 0ms |
 | ✅ PASS | rejects passwords shorter than 8 characters | 0ms |
-| ✅ PASS | validates standard and plus-addressed email formats | 1ms |
+| ✅ PASS | validates standard and plus-addressed email formats | 0ms |
 | ✅ PASS | rejects malformed email formats | 0ms |
 | ✅ PASS | enforces strict admin vs student role permissions | 0ms |
 | ✅ PASS | blocks suspended users and verifies routing to sign out | 0ms |
@@ -78,8 +78,8 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | extracts 11-char ID from embed URL | 0ms |
 | ✅ PASS | extracts 11-char ID from live broadcast URL | 0ms |
 | ✅ PASS | extracts 11-char ID from mobile m.youtube.com URL | 0ms |
-| ✅ PASS | accepts clean 11-character video ID directly | 1ms |
-| ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 0ms |
+| ✅ PASS | accepts clean 11-character video ID directly | 0ms |
+| ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 1ms |
 | ✅ PASS | rejects non-YouTube video hosting platforms | 0ms |
 | ✅ PASS | rejects XSS and malicious script payloads | 0ms |
 
@@ -114,7 +114,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 1ms |
 | ✅ PASS | activates an active enrollment code successfully | 0ms |
 | ✅ PASS | rejects revoked enrollment codes | 0ms |
-| ✅ PASS | rejects expired enrollment codes by timestamp | 0ms |
+| ✅ PASS | rejects expired enrollment codes by timestamp | 1ms |
 | ✅ PASS | enforces single-seat exhaustion transition (1 of 1 -> expired) | 0ms |
 | ✅ PASS | enforces multi-seat cohort capacity (e.g. 25 of 25 -> exhausted) | 0ms |
 | ✅ PASS | prevents replay attacks: same student cannot redeem code twice | 0ms |
@@ -126,9 +126,9 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | computes dynamic completion percentages accurately | 1ms |
+| ✅ PASS | computes dynamic completion percentages accurately | 0ms |
 | ✅ PASS | handles zero lessons gracefully without divide-by-zero NaN errors | 0ms |
-| ✅ PASS | filters draft / unpublished lessons for student visibility | 0ms |
+| ✅ PASS | filters draft / unpublished lessons for student visibility | 1ms |
 | ✅ PASS | provides full access to all lessons for administrators | 0ms |
 | ✅ PASS | sorts curriculum chronologically by week and order index | 0ms |
 | ✅ PASS | selects next incomplete lesson intelligently | 0ms |
@@ -172,7 +172,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | formats separated country code and local number to standardized E.164 | 0ms |
 | ✅ PASS | rejects invalid +91 numbers with fewer or greater than 10 digits | 0ms |
 | ✅ PASS | rejects +91 numbers starting with 0-5 | 0ms |
-| ✅ PASS | accepts valid international numbers in E.164 format (+1 US, +44 UK, +971 UAE) | 0ms |
+| ✅ PASS | accepts valid international numbers in E.164 format (+1 US, +44 UK, +971 UAE) | 1ms |
 | ✅ PASS | rejects numbers exceeding 15 digits as per E.164 ITU-T recommendation | 0ms |
 | ✅ PASS | rejects alphabetic characters and malicious string injections in phone inputs | 0ms |
 | ✅ PASS | identifies profiles requiring mobile number completion banner | 0ms |
@@ -193,7 +193,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | sanitizes leading '+' formula injection payload | 0ms |
 | ✅ PASS | sanitizes leading '-' formula injection payload | 0ms |
 | ✅ PASS | sanitizes leading '@' formula injection payload | 0ms |
-| ✅ PASS | preserves safe alphanumeric values and emails without prefixing quote | 1ms |
+| ✅ PASS | preserves safe alphanumeric values and emails without prefixing quote | 0ms |
 | ✅ PASS | filters registrations by course ID accurately | 0ms |
 | ✅ PASS | filters registrations by mobile completion status | 0ms |
 | ✅ PASS | filters registrations by search query across name and email | 0ms |
@@ -202,16 +202,16 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | validates valid HTTPS Google Meet URL format | 0ms |
+| ✅ PASS | validates valid HTTPS Google Meet URL format | 1ms |
 | ✅ PASS | validates valid HTTPS Microsoft Teams URL format | 0ms |
 | ✅ PASS | validates valid HTTPS Zoom meeting URL format | 0ms |
 | ✅ PASS | rejects dangerous javascript: pseudo-protocol in meeting URLs | 0ms |
 | ✅ PASS | rejects non-HTTPS unencrypted meeting URLs | 0ms |
-| ✅ PASS | grants meeting link access exclusively to approved course participants | 1ms |
+| ✅ PASS | grants meeting link access exclusively to approved course participants | 0ms |
 | ✅ PASS | strictly blocks meeting link access to students pending approval | 0ms |
 | ✅ PASS | strictly blocks cross-course students from accessing unauthorized live meetings | 0ms |
 | ✅ PASS | grants admin instantaneous bypass to manage and monitor sessions | 0ms |
-| ✅ PASS | atomically records audit metadata upon participant approval | 0ms |
+| ✅ PASS | atomically records audit metadata upon participant approval | 1ms |
 
 ### 14. Next.js Security Headers & Anti-Abuse Hardening
 
@@ -232,14 +232,14 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | returns 0% discount when actual and current prices are equal | 0ms |
 | ✅ PASS | returns 0% discount when current price exceeds actual price | 0ms |
 | ✅ PASS | handles 0 or negative actual price safely without NaN or divide-by-zero crashes | 0ms |
-| ✅ PASS | formats Indian Rupee currency correctly with rupee symbol | 10ms |
+| ✅ PASS | formats Indian Rupee currency correctly with rupee symbol | 11ms |
 | ✅ PASS | validates server-side pricing schema rejection for negative prices | 0ms |
 
 ### 16. Google Drive Brochure URL Validation & Security
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | accepts valid HTTPS Google Drive sharing file URL | 1ms |
+| ✅ PASS | accepts valid HTTPS Google Drive sharing file URL | 0ms |
 | ✅ PASS | accepts valid HTTPS Google Drive open ID URL | 0ms |
 | ✅ PASS | accepts valid HTTPS Google Docs & Presentation links | 0ms |
 | ✅ PASS | rejects dangerous javascript: pseudo-protocol XSS attempts | 0ms |
@@ -255,7 +255,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | contains all mandatory snapshot fields: course name, prices, student details | 0ms |
 | ✅ PASS | properly URL-encodes special characters and emojis without syntax corruption | 0ms |
 | ✅ PASS | enforces that enquiry submission never automatically grants course access | 0ms |
-| ✅ PASS | handles duplicate/idempotent submission without corrupting existing records | 1ms |
+| ✅ PASS | handles duplicate/idempotent submission without corrupting existing records | 0ms |
 
 ### 18. Admin Enquiry Management & Manual Payment Confirmation
 
@@ -271,7 +271,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
 | ✅ PASS | determines active course access strictly via valid active enrollment | 0ms |
-| ✅ PASS | hides 'Get This Course' purchase button for active student and shows 'Go to My Courses' | 0ms |
+| ✅ PASS | hides 'Get This Course' purchase button for active student and shows 'Go to My Courses' | 1ms |
 | ✅ PASS | prevents duplicate active enrollment creation when granting access | 0ms |
 | ✅ PASS | records access grant audit trail atomically | 0ms |
 
