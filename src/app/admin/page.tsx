@@ -81,6 +81,7 @@ export default function AdminOverviewPage() {
             usersMissingPhone: data.usersMissingPhone ?? 0,
             profileCompletionRate: data.profileCompletionRate ?? 0,
           });
+          setLoading(false);
           return;
         }
       } catch (apiErr) {
