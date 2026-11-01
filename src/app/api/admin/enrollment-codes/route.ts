@@ -30,18 +30,11 @@ export async function GET(req: NextRequest) {
     const codes = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       const rawCode = data.code || "";
-      // Mask the code: show first 8 chars, mask the rest
-      const maskedCode =
-        rawCode.length > 8
-          ? `${rawCode.substring(0, 8)}-••••••`
-          : rawCode;
 
       return {
         id: doc.id,
         ...data,
-        maskedCode,
-        // Do not expose raw plain code in bulk list queries for security
-        code: undefined,
+        code: rawCode,
       };
     });
 

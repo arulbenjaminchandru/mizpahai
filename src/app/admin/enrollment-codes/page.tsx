@@ -52,6 +52,7 @@ export default function AdminEnrollmentCodesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justGeneratedCode, setJustGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const {
     register,
@@ -89,13 +90,11 @@ export default function AdminEnrollmentCodesPage() {
       const fallbackCodes = snap.docs.map((docSnap) => {
         const d = docSnap.data();
         const rawCode = d.code || "";
-        const maskedCode =
-          rawCode.length > 8 ? `${rawCode.substring(0, 8)}-••••••` : rawCode;
         return {
           id: docSnap.id,
           ...d,
-          maskedCode,
           code: rawCode,
+          maskedCode: rawCode,
         };
       }) as ExtendedCode[];
       setCodes(fallbackCodes);
@@ -106,13 +105,11 @@ export default function AdminEnrollmentCodesPage() {
         const fallbackCodes = snap.docs.map((docSnap) => {
           const d = docSnap.data();
           const rawCode = d.code || "";
-          const maskedCode =
-            rawCode.length > 8 ? `${rawCode.substring(0, 8)}-••••••` : rawCode;
           return {
             id: docSnap.id,
             ...d,
-            maskedCode,
             code: rawCode,
+            maskedCode: rawCode,
           };
         }) as ExtendedCode[];
         setCodes(fallbackCodes);
@@ -428,10 +425,36 @@ export default function AdminEnrollmentCodesPage() {
                     className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
                   >
                     <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-[#0D9488]">
-                          {code.maskedCode || code.code || "DH-••••••"}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-sm text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 select-all tracking-wider">
+                          {code.code || code.maskedCode || "DH-CODE"}
                         </span>
+                        {code.code && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              navigator.clipboard.writeText(code.code);
+                              setCopiedCodeId(code.id);
+                              toastSuccess("Copied!", `Coupon code "${code.code}" copied to clipboard.`);
+                              setTimeout(() => setCopiedCodeId(null), 2500);
+                            }}
+                            className="h-6 px-1.5 text-xs text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 gap-1"
+                            title="Copy plain code to clipboard"
+                          >
+                            {copiedCodeId === code.id ? (
+                              <>
+                                <Check className="h-3 w-3 text-emerald-500" />
+                                <span className="text-[10px] text-emerald-500 font-semibold">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" />
+                                <span className="text-[10px]">Copy</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
                         <Badge
                           variant={
                             code.status === "active"
