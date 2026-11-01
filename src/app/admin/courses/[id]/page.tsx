@@ -552,7 +552,7 @@ export default function CourseBuilderPage({
       </div>
 
       {/* Course Pricing Configuration & Course Brochure Configuration */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="pricing" className="grid grid-cols-1 lg:grid-cols-2 gap-6 scroll-mt-6">
         {/* Course Pricing Configuration */}
         <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 shadow-md">
           <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">

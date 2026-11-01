@@ -26,6 +26,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Tag,
 } from "lucide-react";
 import type { Course } from "@/types";
 
@@ -296,6 +297,24 @@ export default function AdminCoursesPage() {
                       >
                         {course.isPublished ? "Published" : "Draft"}
                       </Badge>
+                      {course.pricingEnabled ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-mono"
+                        >
+                          ₹{(course.currentPrice ?? 0).toLocaleString("en-IN")}
+                          {course.discountPercentage && course.discountPercentage > 0
+                            ? ` (${course.discountPercentage}% OFF)`
+                            : ""}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-slate-500 border-slate-300 dark:border-slate-700"
+                        >
+                          Pricing: Disabled
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-slate-400 line-clamp-1">
                       {course.description}
@@ -322,13 +341,24 @@ export default function AdminCoursesPage() {
                       )}
                     </Button>
 
+                    <Link href={`/admin/courses/${course.id}#pricing`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-bold text-xs gap-1.5"
+                      >
+                        <Tag className="h-3.5 w-3.5" />
+                        Edit Pricing
+                      </Button>
+                    </Link>
+
                     <Link href={`/admin/courses/${course.id}`}>
                       <Button
                         size="sm"
                         className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5"
                       >
                         <Layers className="h-3.5 w-3.5" />
-                        Curriculum Builder
+                        Curriculum
                       </Button>
                     </Link>
 
