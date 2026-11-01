@@ -90,7 +90,7 @@ export default function AdminLiveClassesPage() {
           const list = data.courses || [];
           setCourses(list);
           if (list.length > 0) {
-            setSelectedCourseId(list[0].id);
+            // Keep selectedCourseId as "" by default to show all courses
             setFormCourseId(list[0].id);
           }
         }
@@ -102,7 +102,7 @@ export default function AdminLiveClassesPage() {
         const fallbackCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Course[];
         if (fallbackCourses.length > 0) {
           setCourses(fallbackCourses);
-          setSelectedCourseId((prev) => prev || fallbackCourses[0].id);
+          // Keep selectedCourseId as "" by default to show all courses
           setFormCourseId((prev) => prev || fallbackCourses[0].id);
         }
       } catch (clientErr) {
@@ -160,12 +160,13 @@ export default function AdminLiveClassesPage() {
 
   // 3. Fetch participants for selected course
   const fetchParticipants = async () => {
-    if (!user || !selectedCourseId) return;
+    const targetCourseId = selectedCourseId || (courses[0]?.id || "");
+    if (!user || !targetCourseId) return;
     setLoadingParticipants(true);
     try {
       const token = await user.getIdToken();
       const res = await fetch(
-        `/api/admin/live-classes/participants?courseId=${selectedCourseId}`,
+        `/api/admin/live-classes/participants?courseId=${targetCourseId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
@@ -178,7 +179,7 @@ export default function AdminLiveClassesPage() {
       }
       try {
         const [enrSnap, usersSnap, accessSnap] = await Promise.all([
-          getDocs(query(collection(db, "enrollments"), where("courseId", "==", selectedCourseId))),
+          getDocs(query(collection(db, "enrollments"), where("courseId", "==", targetCourseId))),
           getDocs(collection(db, "users")),
           getDocs(collection(db, "liveClassAccess")),
         ]);
@@ -191,7 +192,7 @@ export default function AdminLiveClassesPage() {
         const accessMap: Record<string, any> = {};
         accessSnap.docs.forEach((d) => {
           const data = d.data();
-          if (data.courseId === selectedCourseId) {
+          if (data.courseId === targetCourseId) {
             accessMap[data.userId] = data;
           }
         });
@@ -203,7 +204,7 @@ export default function AdminLiveClassesPage() {
           return {
             userId: enr.userId,
             enrollmentId: d.id,
-            courseId: selectedCourseId,
+            courseId: targetCourseId,
             displayName: u.displayName || "Student",
             email: u.email || "No email",
             phoneNumber: u.phoneNumber || null,
@@ -570,6 +571,7 @@ export default function AdminLiveClassesPage() {
             onChange={(e) => setSelectedCourseId(e.target.value)}
             className="h-9 px-3 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-teal-500 w-full sm:w-64"
           >
+            <option value="">All Courses &amp; Cohorts</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -920,7 +922,8 @@ export default function AdminLiveClassesPage() {
               className="w-full h-10 px-3 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
               required
             >
-              {courses.map((c) => (
+
+            {courses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.batchName || "Batch 2026"})
                 </option>

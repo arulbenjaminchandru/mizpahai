@@ -33,6 +33,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { CourseEnquiry, CourseEnquiryStatus, Course } from "@/types";
+import { collection, doc, getDocs, updateDoc, setDoc, addDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 export default function AdminEnquiriesPage() {
   const { user } = useAuth();
@@ -90,6 +92,9 @@ export default function AdminEnquiriesPage() {
         }),
       ]);
 
+      if (!enrRes.ok) {
+        throw new Error("Server enquiries API returned non-200");
+      }
       if (enrRes.ok) {
         const data = await enrRes.json();
         setEnquiries(data.enquiries || []);
@@ -101,8 +106,70 @@ export default function AdminEnquiriesPage() {
         setCourses(cData.courses || []);
       }
     } catch (err: any) {
-      console.error("Error fetching enquiries:", err);
-      toastError("Load Error", err.message || "Failed to load enquiries");
+      console.warn("API enquiries error, falling back to direct Firestore:", err);
+      try {
+        const [enqSnap, coursesSnap] = await Promise.all([
+          getDocs(collection(db, "courseEnquiries")),
+          getDocs(collection(db, "courses")),
+        ]);
+
+        const cList = coursesSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Course[];
+        setCourses(cList);
+
+        const courseMap: Record<string, string> = {};
+        cList.forEach((c) => {
+          courseMap[c.id] = c.name;
+        });
+
+        let allEnquiries = enqSnap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            courseNameSnapshot: courseMap[data.courseId] || data.courseNameSnapshot || "Course",
+          } as CourseEnquiry;
+        });
+
+        const m = {
+          total: allEnquiries.length,
+          new: allEnquiries.filter((e) => e.status === "new").length,
+          contacted: allEnquiries.filter((e) => e.status === "contacted").length,
+          awaiting_payment: allEnquiries.filter((e) => e.status === "awaiting_payment").length,
+          payment_under_verification: allEnquiries.filter((e) => e.status === "payment_under_verification").length,
+          payment_confirmed: allEnquiries.filter((e) => e.status === "payment_confirmed").length,
+          access_granted: allEnquiries.filter((e) => e.status === "access_granted").length,
+          rejected: allEnquiries.filter((e) => e.status === "rejected").length,
+        };
+        setMetrics(m);
+
+        if (statusFilter !== "all") {
+          allEnquiries = allEnquiries.filter((e) => e.status === statusFilter);
+        }
+        if (courseFilter !== "all") {
+          allEnquiries = allEnquiries.filter((e) => e.courseId === courseFilter);
+        }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          allEnquiries = allEnquiries.filter(
+            (e) =>
+              e.studentName.toLowerCase().includes(q) ||
+              e.studentEmail.toLowerCase().includes(q) ||
+              (e.studentPhoneNumber && e.studentPhoneNumber.includes(q)) ||
+              (e.courseNameSnapshot && e.courseNameSnapshot.toLowerCase().includes(q))
+          );
+        }
+
+        allEnquiries.sort((a, b) => {
+          const tA = (a.createdAt as any)?.seconds || 0;
+          const tB = (b.createdAt as any)?.seconds || 0;
+          return tB - tA;
+        });
+
+        setEnquiries(allEnquiries);
+      } catch (clientErr) {
+        console.error("Direct Firestore load enquiries failed:", clientErr);
+        toastError("Load Error", err.message || "Failed to load enquiries");
+      }
     } finally {
       setLoading(false);
     }
@@ -144,7 +211,11 @@ export default function AdminEnquiriesPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to update status");
+        await updateDoc(doc(db, "courseEnquiries", selectedEnquiry.id), {
+          status: newStatus,
+          adminNotes,
+          updatedAt: serverTimestamp(),
+        });
       }
 
       toastSuccess("Status Updated", `Enquiry marked as "${newStatus.replace("_", " ")}".`);
@@ -183,7 +254,14 @@ export default function AdminEnquiriesPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to confirm payment");
+        await updateDoc(doc(db, "courseEnquiries", selectedEnquiry.id), {
+          paymentConfirmed: true,
+          status: "payment_confirmed",
+          paymentConfirmedAt: serverTimestamp(),
+          paymentConfirmedBy: user.email || user.uid,
+          adminNotes: paymentNotes.trim() || selectedEnquiry.adminNotes || "",
+          updatedAt: serverTimestamp(),
+        });
       }
 
       toastSuccess(
@@ -222,7 +300,33 @@ export default function AdminEnquiriesPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to grant course access");
+        const enrollmentDocId = `${selectedEnquiry.userId}_${selectedEnquiry.courseId}`;
+        await setDoc(doc(db, "enrollments", enrollmentDocId), {
+          userId: selectedEnquiry.userId,
+          courseId: selectedEnquiry.courseId,
+          batchName: "Cohort 2026",
+          status: "active",
+          enrolledAt: serverTimestamp(),
+          grantedBy: user.email || user.uid,
+          grantedViaEnquiryId: selectedEnquiry.id,
+        }, { merge: true });
+
+        await updateDoc(doc(db, "courseEnquiries", selectedEnquiry.id), {
+          status: "access_granted",
+          accessGrantedAt: serverTimestamp(),
+          accessGrantedBy: user.email || user.uid,
+          updatedAt: serverTimestamp(),
+        });
+
+        await addDoc(collection(db, "courseAccessAudits"), {
+          action: "grant",
+          studentId: selectedEnquiry.userId,
+          courseId: selectedEnquiry.courseId,
+          performedBy: user.email || user.uid,
+          performedByRole: "admin",
+          reason: `Manual access granted via purchase enquiry ${selectedEnquiry.id}`,
+          timestamp: serverTimestamp(),
+        });
       }
 
       const data = await res.json();

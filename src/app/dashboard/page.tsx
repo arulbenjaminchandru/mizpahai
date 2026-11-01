@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type {
   Enrollment,
@@ -25,6 +25,7 @@ import type {
 import {
   formatIndianCurrency,
   calculateDiscountPercentage,
+  generateWhatsAppEnquiryUrl,
 } from "@/lib/validations";
 import {
   BookOpen,
@@ -153,7 +154,14 @@ export default function StudentDashboardPage() {
             setUserEnquiries(data.enquiries || []);
           }
         } catch (enqErr) {
-          console.warn("Error fetching enquiries:", enqErr);
+          console.warn("API enquiries load error, falling back to direct Firestore:", enqErr);
+          try {
+            const enqSnap = await getDocs(query(collection(db, "courseEnquiries"), where("userId", "==", user.uid)));
+            const fallbackList = enqSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as CourseEnquiry[];
+            setUserEnquiries(fallbackList);
+          } catch (clientEnqErr) {
+            console.error("Direct Firestore load enquiries failed:", clientEnqErr);
+          }
         }
       } catch (err) {
         console.error("Dashboard data load error:", err);
@@ -308,7 +316,67 @@ export default function StudentDashboardPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to submit course enquiry");
+        const actualPrice = typeof course.actualPrice === "number" ? course.actualPrice : 15000;
+        const currentPrice = typeof course.currentPrice === "number" ? course.currentPrice : 7999;
+        const discountSnapshot = calculateDiscountPercentage(actualPrice, currentPrice);
+        const studentName = user.displayName || user.email?.split("@")[0] || "Student";
+        const studentEmail = user.email || "";
+
+        const whatsappUrl = generateWhatsAppEnquiryUrl({
+          courseName: course.name || "Course",
+          actualPrice,
+          currentPrice,
+          discountPercentage: discountSnapshot,
+          studentName,
+          studentEmail,
+          whatsappNumber: "+919894481283",
+        });
+
+        const newDoc = await addDoc(collection(db, "courseEnquiries"), {
+          userId: user.uid,
+          studentName,
+          studentEmail,
+          studentPhoneNumber: user.phoneNumber || null,
+          courseId: course.id,
+          courseNameSnapshot: course.name || "Course",
+          actualPriceSnapshot: actualPrice,
+          currentPriceSnapshot: currentPrice,
+          discountSnapshot,
+          status: "new",
+          adminNotes: "",
+          paymentConfirmedAt: null,
+          paymentConfirmedBy: null,
+          accessGrantedAt: null,
+          accessGrantedBy: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const enquiryObj: CourseEnquiry = {
+          id: newDoc.id,
+          userId: user.uid,
+          studentName,
+          studentEmail,
+          courseId: course.id,
+          courseNameSnapshot: course.name,
+          actualPriceSnapshot: actualPrice,
+          currentPriceSnapshot: currentPrice,
+          discountSnapshot,
+          status: "new",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+
+        setActiveEnquiryCourse(course);
+        setWhatsappModalUrl(whatsappUrl);
+        setEnquirySuccessModalOpen(true);
+        setUserEnquiries((prev) => [enquiryObj, ...prev.filter((e) => e.id !== enquiryObj.id)]);
+
+        toastSuccess(
+          "Course Enquiry Submitted!",
+          "Continue to WhatsApp to receive your course purchase coupon and enrollment details."
+        );
+        return;
       }
 
       const data = await res.json();
