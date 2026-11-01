@@ -2,13 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { Navbar } from "@/components/navigation/navbar";
 import { Footer } from "@/components/navigation/footer";
 import { StudentWalkthroughVideo } from "@/components/video/StudentWalkthroughVideo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
+import { db } from "@/lib/firebase/config";
+import { collection, getDocs, query, where, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import type { Course, Enrollment, CourseEnquiry } from "@/types";
+import {
+  formatIndianCurrency,
+  calculateDiscountPercentage,
+  generateWhatsAppEnquiryUrl,
+} from "@/lib/validations";
 import {
   Sparkles,
   Award,
@@ -39,9 +50,14 @@ import {
   ArrowUpRight,
   Laptop,
   Video,
+  ShoppingBag,
+  MessageCircle,
+  Download,
+  Loader2,
 } from "lucide-react";
 
 export default function HomePage() {
+  const router = useRouter();
   const { user } = useAuth();
 
   // Target: Saturday 14 November 2026, 10:30 AM IST
@@ -57,6 +73,209 @@ export default function HomePage() {
   const [expandedSession, setExpandedSession] = useState<number | null>(1);
   const [showFullSyllabus, setShowFullSyllabus] = useState<boolean>(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // ─── Course Marketplace State ──────────────────────────────────────────────
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [userEnquiries, setUserEnquiries] = useState<CourseEnquiry[]>([]);
+  const [submittingEnquiryId, setSubmittingEnquiryId] = useState<string | null>(null);
+  const [activeEnquiryCourse, setActiveEnquiryCourse] = useState<Course | null>(null);
+  const [enquirySuccessModalOpen, setEnquirySuccessModalOpen] = useState(false);
+  const [whatsappModalUrl, setWhatsappModalUrl] = useState<string>("");
+  const { success: toastSuccess, error: toastError } = useToast();
+
+  useEffect(() => {
+    async function loadCourses() {
+      setCoursesLoading(true);
+      try {
+        const res = await fetch("/api/courses");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.courses) && data.courses.length > 0) {
+            setCourses(data.courses);
+          } else {
+            const snap = await getDocs(collection(db, "courses"));
+            const list = snap.docs
+              .map((d) => ({ id: d.id, ...d.data() }) as Course)
+              .filter((c) => c.isPublished);
+            setCourses(list);
+          }
+        } else {
+          const snap = await getDocs(collection(db, "courses"));
+          const list = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }) as Course)
+            .filter((c) => c.isPublished);
+          setCourses(list);
+        }
+      } catch (err) {
+        console.warn("API load courses error, using direct Firestore fallback:", err);
+        try {
+          const snap = await getDocs(collection(db, "courses"));
+          const list = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }) as Course)
+            .filter((c) => c.isPublished);
+          setCourses(list);
+        } catch (clientErr) {
+          console.error("Direct Firestore load courses failed:", clientErr);
+        }
+      } finally {
+        setCoursesLoading(false);
+      }
+    }
+
+    loadCourses();
+  }, []);
+
+  // Fetch student enrollments and enquiries if signed in
+  useEffect(() => {
+    if (!user) {
+      setEnrollments([]);
+      setUserEnquiries([]);
+      return;
+    }
+
+    async function loadUserData() {
+      try {
+        const enrSnap = await getDocs(
+          query(collection(db, "enrollments"), where("userId", "==", user!.uid))
+        );
+        const userEnrollments: Enrollment[] = [];
+        enrSnap.forEach((d) => userEnrollments.push({ id: d.id, ...d.data() } as Enrollment));
+        setEnrollments(userEnrollments);
+
+        try {
+          const token = await user!.getIdToken();
+          const enqRes = await fetch("/api/enquiries", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (enqRes.ok) {
+            const data = await enqRes.json();
+            setUserEnquiries(data.enquiries || []);
+          }
+        } catch {
+          const enqSnap = await getDocs(
+            query(collection(db, "courseEnquiries"), where("userId", "==", user!.uid))
+          );
+          const fallbackList = enqSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as CourseEnquiry[];
+          setUserEnquiries(fallbackList);
+        }
+      } catch (e) {
+        console.error("Error loading user course status:", e);
+      }
+    }
+
+    loadUserData();
+  }, [user]);
+
+  const handlePurchaseEnquiry = async (course: Course) => {
+    // 1. Validate user session: If not signed in, route to register screen
+    if (!user) {
+      router.push(`/register?courseId=${course.id}`);
+      return;
+    }
+
+    // 2. User is authenticated: proceed with purchase enquiry
+    const actualPrice = typeof course.actualPrice === "number" ? course.actualPrice : 15000;
+    const currentPrice = typeof course.currentPrice === "number" ? course.currentPrice : 7999;
+    const discountSnapshot = calculateDiscountPercentage(actualPrice, currentPrice);
+
+    // If user is logged in: submit enquiry via API / Firestore
+    setSubmittingEnquiryId(course.id);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/enquiries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ courseId: course.id }),
+      });
+
+      if (!res.ok) {
+        const studentName = user.displayName || user.email?.split("@")[0] || "Student";
+        const studentEmail = user.email || "";
+
+        const whatsappUrl = generateWhatsAppEnquiryUrl({
+          courseName: course.name || "Course",
+          actualPrice,
+          currentPrice,
+          discountPercentage: discountSnapshot,
+          studentName,
+          studentEmail,
+          whatsappNumber: "+919894481283",
+        });
+
+        const newDoc = await addDoc(collection(db, "courseEnquiries"), {
+          userId: user.uid,
+          studentName,
+          studentEmail,
+          studentPhoneNumber: user.phoneNumber || null,
+          courseId: course.id,
+          courseNameSnapshot: course.name || "Course",
+          actualPriceSnapshot: actualPrice,
+          currentPriceSnapshot: currentPrice,
+          discountSnapshot,
+          status: "new",
+          adminNotes: "",
+          paymentConfirmedAt: null,
+          paymentConfirmedBy: null,
+          accessGrantedAt: null,
+          accessGrantedBy: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const enquiryObj: CourseEnquiry = {
+          id: newDoc.id,
+          userId: user.uid,
+          studentName,
+          studentEmail,
+          courseId: course.id,
+          courseNameSnapshot: course.name,
+          actualPriceSnapshot: actualPrice,
+          currentPriceSnapshot: currentPrice,
+          discountSnapshot,
+          status: "new",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+
+        setActiveEnquiryCourse(course);
+        setWhatsappModalUrl(whatsappUrl);
+        setEnquirySuccessModalOpen(true);
+        setUserEnquiries((prev) => [enquiryObj, ...prev.filter((e) => e.id !== enquiryObj.id)]);
+
+        toastSuccess(
+          "Course Enquiry Submitted!",
+          "Continue to WhatsApp to receive your course purchase coupon and enrollment details."
+        );
+        return;
+      }
+
+      const data = await res.json();
+      setActiveEnquiryCourse(course);
+      setWhatsappModalUrl(data.whatsappUrl);
+      setEnquirySuccessModalOpen(true);
+
+      if (data.enquiry) {
+        setUserEnquiries((prev) => {
+          const filtered = prev.filter((e) => e.id !== data.enquiry.id);
+          return [data.enquiry, ...filtered];
+        });
+      }
+
+      toastSuccess(
+        "Course Enquiry Submitted!",
+        "Continue to WhatsApp to receive your course purchase coupon and enrollment details."
+      );
+    } catch (err: any) {
+      toastError("Enquiry Failed", err.message || "Failed to submit enquiry");
+    } finally {
+      setSubmittingEnquiryId(null);
+    }
+  };
 
   useEffect(() => {
     function calculateCountdown() {
@@ -292,7 +511,7 @@ export default function HomePage() {
 
       {/* 2. HERO — TWO DOORS */}
       <section className="relative overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24 border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
           <div className="space-y-3">
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
               Learn live. Keep your classroom for life.
@@ -303,8 +522,280 @@ export default function HomePage() {
             </p>
           </div>
 
+{/* ─── EXPLORE AVAILABLE COURSES ────────────────────────────────────── */}
+      <div id="courses" className="space-y-6 text-left pt-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                  <ShoppingBag className="h-4 w-4" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  Explore Available Courses
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+                Discover career-transforming engineering and AI programs. Check pricing, download official brochures, and enquire on WhatsApp.
+              </p>
+            </div>
+
+            <Badge
+              variant="outline"
+              className="border-teal-500/30 text-teal-600 dark:text-teal-400 bg-teal-500/10 text-xs px-3 py-1 font-semibold"
+            >
+              <Sparkles className="h-3 w-3 mr-1" />
+              Official Tiben AI Cohorts
+            </Badge>
+          </div>
+
+          {coursesLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              <div className="h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              <div className="h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            </div>
+          ) : courses.filter((c) => c.isPublished).length === 0 ? (
+            <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/50 p-8 text-center space-y-2">
+              <ShoppingBag className="h-8 w-8 text-slate-400 mx-auto" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                No Additional Courses Currently Available
+              </p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                New certifications and cohort schedules will be announced soon.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses
+                .filter((c) => c.isPublished)
+                .map((course) => {
+                  const activeEnrollment = enrollments.find(
+                    (e) =>
+                      e.courseId === course.id &&
+                      (e.status === "active" || (!e.status && !e.revokedAt))
+                  );
+                  const isRevoked = enrollments.some(
+                    (e) => e.courseId === course.id && e.status === "revoked"
+                  );
+                  const pendingEnquiry = userEnquiries.find(
+                    (enq) =>
+                      enq.courseId === course.id &&
+                      [
+                        "new",
+                        "contacted",
+                        "awaiting_payment",
+                        "payment_under_verification",
+                      ].includes(enq.status)
+                  );
+
+                  // Pricing values
+                  const actualPrice =
+                    typeof course.actualPrice === "number" ? course.actualPrice : 15000;
+                  const currentPrice =
+                    typeof course.currentPrice === "number" ? course.currentPrice : 7999;
+                  const discountPct = calculateDiscountPercentage(actualPrice, currentPrice);
+                  const isPricingEnabled = course.pricingEnabled !== false;
+                  const hasBrochure = Boolean(course.brochureEnabled && course.brochureUrl);
+
+                  return (
+                    <Card
+                      key={course.id}
+                      className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 hover:border-teal-500/40 dark:hover:border-slate-700 transition-all flex flex-col justify-between shadow-md overflow-hidden"
+                    >
+                      <div>
+                        {/* Course Cover Image Banner */}
+                        <div className="h-40 w-full bg-gradient-to-r from-teal-900 via-slate-900 to-[#0B1F3A] relative flex items-center justify-center p-4 text-center">
+                          {course.coverImageUrl ? (
+                            <img
+                              src={course.coverImageUrl}
+                              alt={course.name}
+                              className="absolute inset-0 w-full h-full object-cover opacity-35"
+                            />
+                          ) : null}
+                          <div className="relative z-10 space-y-1.5">
+                            <Badge className="bg-teal-500/20 text-teal-300 border border-teal-500/30 text-[10px] uppercase tracking-wider font-bold">
+                              {course.batchName || "Certification Cohort"}
+                            </Badge>
+                            <h3 className="text-base sm:text-lg font-extrabold text-white tracking-tight line-clamp-2 px-2">
+                              {course.name}
+                            </h3>
+                          </div>
+                        </div>
+
+                        <CardHeader className="pb-3 pt-4 space-y-2">
+                          {/* Access Status Priority Badge */}
+                          <div className="flex items-center justify-between gap-2">
+                            {activeEnrollment ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                                ✓ ACTIVE ACCESS
+                              </Badge>
+                            ) : pendingEnquiry ? (
+                              <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                                ⏳ ENQUIRY SUBMITTED
+                              </Badge>
+                            ) : isRevoked ? (
+                              <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-bold">
+                                ✕ ACCESS REVOKED
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/30 text-[10px] font-bold">
+                                AVAILABLE
+                              </Badge>
+                            )}
+
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Mentor: {course.instructorName || "Arul Benjamin"}
+                            </span>
+                          </div>
+
+                          <CardDescription className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                            {course.description}
+                          </CardDescription>
+                        </CardHeader>
+
+                        {/* Dynamic Pricing Display */}
+                        <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/40 border-y border-slate-100 dark:border-slate-800">
+                          {isPricingEnabled ? (
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                                  Course Fee
+                                </span>
+                                <div className="flex items-baseline gap-2 mt-0.5">
+                                  {actualPrice > currentPrice && (
+                                    <span className="text-xs line-through text-slate-400 font-medium">
+                                      {formatIndianCurrency(actualPrice)}
+                                    </span>
+                                  )}
+                                  <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                                    {formatIndianCurrency(currentPrice)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {discountPct > 0 && (
+                                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold">
+                                  {discountPct}% OFF
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-600 dark:text-slate-400 italic">
+                              Contact us for course pricing and enrollment details.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions & Status Notices */}
+                      <CardContent className="pt-4 pb-4 space-y-3">
+                        {activeEnrollment ? (
+                          <div className="space-y-2.5">
+                            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 font-medium text-center">
+                              You Already Have Access to This Course
+                            </div>
+                            <Link href={`/courses/${course.id}`} className="block">
+                              <Button className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 shadow-sm">
+                                Go to My Courses
+                                <ArrowRight className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : pendingEnquiry ? (
+                          <div className="space-y-2.5">
+                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
+                              Your course purchase enquiry has been submitted. Please contact us on WhatsApp for enrollment assistance.
+                            </div>
+                            <a
+                              href={`https://wa.me/919894481283?text=${encodeURIComponent(
+                                `Hello Tiben AI Academy! I have an active purchase enquiry for ${course.name}. Please assist me with the coupon and next steps.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <Button
+                                variant="outline"
+                                className="w-full border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold text-xs gap-1.5"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                Open WhatsApp Chat
+                              </Button>
+                            </a>
+                          </div>
+                        ) : isRevoked ? (
+                          <div className="space-y-2.5">
+                            <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-700 dark:text-rose-400 font-medium text-center">
+                              Your previous access to this course was revoked.
+                            </div>
+                            <Button
+                              onClick={() => handlePurchaseEnquiry(course)}
+                              disabled={submittingEnquiryId === course.id}
+                              className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 shadow-sm"
+                            >
+                              {submittingEnquiryId === course.id ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  Submitting Enquiry...
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingBag className="h-3.5 w-3.5" />
+                                  GET THIS COURSE — {formatIndianCurrency(currentPrice)}
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handlePurchaseEnquiry(course)}
+                            disabled={submittingEnquiryId === course.id}
+                            className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 shadow-md shadow-teal-500/20"
+                          >
+                            {submittingEnquiryId === course.id ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Submitting Enquiry...
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingBag className="h-3.5 w-3.5" />
+                                GET THIS COURSE — {formatIndianCurrency(currentPrice)}
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Google Drive Brochure Download Button */}
+                        {hasBrochure && (
+                          <a
+                            href={course.brochureUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <Button
+                              variant="outline"
+                              className="w-full border-cyan-500/40 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 font-semibold text-xs gap-1.5"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              DOWNLOAD COURSE BROCHURE
+                            </Button>
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      </div>
+
+
           {/* Two Doors Side-by-Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-10 border-t border-slate-200 dark:border-slate-800 text-left">
             {/* Door 1: New Here */}
             <Card className="border-teal-500/30 bg-white dark:bg-slate-900/90 shadow-xl flex flex-col justify-between p-6 sm:p-7 space-y-5">
               <div className="space-y-4">
@@ -374,7 +865,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
                 <a href="#data-horizon" className="w-full sm:flex-1">
                   <Button className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5 h-10">
-                    See the Program
+                    See Program Details
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </a>
@@ -1306,6 +1797,82 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Course Enquiry Confirmation Modal */}
+      <Dialog
+        isOpen={enquirySuccessModalOpen}
+        onClose={() => setEnquirySuccessModalOpen(false)}
+        title="Your Course Enquiry Has Been Submitted!"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20 text-center space-y-2">
+            <div className="h-12 w-12 rounded-full bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto">
+              <Check className="h-6 w-6 stroke-[3]" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Course: {activeEnquiryCourse?.name}
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
+              Thank you for your interest in Tiben AI Academy. Continue to WhatsApp to receive your course purchase coupon and enrollment details.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+            <div className="flex justify-between">
+              <span>Offer Price:</span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                {formatIndianCurrency(
+                  typeof activeEnquiryCourse?.currentPrice === "number"
+                    ? activeEnquiryCourse.currentPrice
+                    : 7999
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Admissions Mentor:</span>
+              <span className="font-semibold text-teal-600 dark:text-teal-400">
+                {activeEnquiryCourse?.instructorName || "Arul Benjamin"}
+              </span>
+            </div>
+          </div>
+
+          {!user && (
+            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-400 text-center">
+              Have an account or want to register?{" "}
+              <Link href="/register" className="font-bold underline text-amber-800 dark:text-amber-300">
+                Sign up free
+              </Link>{" "}
+              to access course materials.
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEnquirySuccessModalOpen(false)}
+              className="flex-1 text-xs"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (whatsappModalUrl) {
+                  window.open(whatsappModalUrl, "_blank", "noopener,noreferrer");
+                }
+                setEnquirySuccessModalOpen(false);
+              }}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-md shadow-emerald-600/20"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Continue to WhatsApp
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Footer />
     </div>

@@ -1,12 +1,12 @@
 # TiBen AI Academy — Comprehensive Quality Assurance & Scalability Audit
 
-**Execution Date:** 2026-11-01T18:05:24.990Z  
+**Execution Date:** 2026-11-01T19:09:36.293Z  
 **Platform Version:** 1.0.0 (Production Candidate)  
 **Total Test Cases:** 132  
 **Passed:** 132  
 **Failed:** 0  
 **Success Rate:** 100.0%  
-**Execution Runtime:** 25ms  
+**Execution Runtime:** 35ms  
 **Audit Purpose:** Pre-launch Brand Reputation & Zero-Gap Quality Verification (Target Cohort: Nov 2026 – Apr 2027)
 
 ---
@@ -62,7 +62,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | rejects passwords missing lowercase letters | 0ms |
 | ✅ PASS | rejects passwords missing numerical digits | 0ms |
 | ✅ PASS | rejects passwords shorter than 8 characters | 0ms |
-| ✅ PASS | validates standard and plus-addressed email formats | 1ms |
+| ✅ PASS | validates standard and plus-addressed email formats | 0ms |
 | ✅ PASS | rejects malformed email formats | 0ms |
 | ✅ PASS | enforces strict admin vs student role permissions | 0ms |
 | ✅ PASS | blocks suspended users and verifies routing to sign out | 0ms |
@@ -75,13 +75,13 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | extracts 11-char ID from standard watch URL | 0ms |
 | ✅ PASS | extracts 11-char ID from watch URL with tracking params | 0ms |
 | ✅ PASS | extracts 11-char ID from short youtu.be URL | 0ms |
-| ✅ PASS | extracts 11-char ID from embed URL | 0ms |
+| ✅ PASS | extracts 11-char ID from embed URL | 1ms |
 | ✅ PASS | extracts 11-char ID from live broadcast URL | 0ms |
 | ✅ PASS | extracts 11-char ID from mobile m.youtube.com URL | 0ms |
 | ✅ PASS | accepts clean 11-character video ID directly | 0ms |
 | ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 0ms |
 | ✅ PASS | rejects non-YouTube video hosting platforms | 0ms |
-| ✅ PASS | rejects XSS and malicious script payloads | 0ms |
+| ✅ PASS | rejects XSS and malicious script payloads | 1ms |
 
 ### 3. Cloud Resources & Document Validation
 
@@ -104,17 +104,17 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | rejects invalid slugs with uppercase letters, spaces or special characters | 0ms |
 | ✅ PASS | validates enrollment code prefix format | 0ms |
 | ✅ PASS | rejects invalid enrollment code prefix format | 0ms |
-| ✅ PASS | validates allowable resource categories | 1ms |
+| ✅ PASS | validates allowable resource categories | 0ms |
 | ✅ PASS | validates allowable lesson duration ranges | 0ms |
 
 ### 5. Enrollment Code Lifecycle & Cryptographic Rules
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 1ms |
-| ✅ PASS | activates an active enrollment code successfully | 0ms |
+| ✅ PASS | generates deterministic formatted code conforming to PREFIX-YEAR-RANDOM | 2ms |
+| ✅ PASS | activates an active enrollment code successfully | 1ms |
 | ✅ PASS | rejects revoked enrollment codes | 0ms |
-| ✅ PASS | rejects expired enrollment codes by timestamp | 1ms |
+| ✅ PASS | rejects expired enrollment codes by timestamp | 0ms |
 | ✅ PASS | enforces single-seat exhaustion transition (1 of 1 -> expired) | 0ms |
 | ✅ PASS | enforces multi-seat cohort capacity (e.g. 25 of 25 -> exhausted) | 0ms |
 | ✅ PASS | prevents replay attacks: same student cannot redeem code twice | 0ms |
@@ -150,7 +150,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | enforces brand name integrity across platform headers and titles | 0ms |
 | ✅ PASS | enforces verified instructor phone number (+91-9894481283) exclusively | 0ms |
 | ✅ PASS | generates correctly formatted direct WhatsApp admissions URI | 0ms |
-| ✅ PASS | generates valid tel: calling URI for mobile direct dialing | 1ms |
+| ✅ PASS | generates valid tel: calling URI for mobile direct dialing | 0ms |
 | ✅ PASS | verifies accurate brand color hex palette tokens | 0ms |
 | ✅ PASS | verifies founder and lead mentor accreditation | 0ms |
 
@@ -159,7 +159,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
 | ✅ PASS | verifies course 'wabsZePQuyvq2RmdwTv3' configuration | 0ms |
-| ✅ PASS | verifies complete 11-week curriculum coverage | 0ms |
+| ✅ PASS | verifies complete 11-week curriculum coverage | 1ms |
 | ✅ PASS | verifies all 22 live video lessons possess valid YouTube IDs | 0ms |
 | ✅ PASS | verifies student enrollment indexing is active | 0ms |
 | ✅ PASS | verifies active enrollment code 'DH-2026-LUCU1G' readiness | 0ms |
@@ -175,7 +175,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | accepts valid international numbers in E.164 format (+1 US, +44 UK, +971 UAE) | 0ms |
 | ✅ PASS | rejects numbers exceeding 15 digits as per E.164 ITU-T recommendation | 0ms |
 | ✅ PASS | rejects alphabetic characters and malicious string injections in phone inputs | 0ms |
-| ✅ PASS | identifies profiles requiring mobile number completion banner | 1ms |
+| ✅ PASS | identifies profiles requiring mobile number completion banner | 0ms |
 
 ### 11. Social Media Community & Follow Integration
 
@@ -202,8 +202,8 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | validates valid HTTPS Google Meet URL format | 0ms |
-| ✅ PASS | validates valid HTTPS Microsoft Teams URL format | 1ms |
+| ✅ PASS | validates valid HTTPS Google Meet URL format | 1ms |
+| ✅ PASS | validates valid HTTPS Microsoft Teams URL format | 0ms |
 | ✅ PASS | validates valid HTTPS Zoom meeting URL format | 0ms |
 | ✅ PASS | rejects dangerous javascript: pseudo-protocol in meeting URLs | 0ms |
 | ✅ PASS | rejects non-HTTPS unencrypted meeting URLs | 0ms |
@@ -217,7 +217,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | enforces X-Content-Type-Options: nosniff to eliminate MIME sniffing attacks | 1ms |
+| ✅ PASS | enforces X-Content-Type-Options: nosniff to eliminate MIME sniffing attacks | 0ms |
 | ✅ PASS | enforces X-Frame-Options: SAMEORIGIN to prevent clickjacking | 0ms |
 | ✅ PASS | enforces Referrer-Policy: strict-origin-when-cross-origin to protect referral data | 0ms |
 | ✅ PASS | enforces Permissions-Policy camera/mic restrictions for untrusted web APIs | 0ms |
@@ -232,14 +232,14 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | returns 0% discount when actual and current prices are equal | 0ms |
 | ✅ PASS | returns 0% discount when current price exceeds actual price | 0ms |
 | ✅ PASS | handles 0 or negative actual price safely without NaN or divide-by-zero crashes | 0ms |
-| ✅ PASS | formats Indian Rupee currency correctly with rupee symbol | 11ms |
+| ✅ PASS | formats Indian Rupee currency correctly with rupee symbol | 13ms |
 | ✅ PASS | validates server-side pricing schema rejection for negative prices | 0ms |
 
 ### 16. Google Drive Brochure URL Validation & Security
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | accepts valid HTTPS Google Drive sharing file URL | 1ms |
+| ✅ PASS | accepts valid HTTPS Google Drive sharing file URL | 0ms |
 | ✅ PASS | accepts valid HTTPS Google Drive open ID URL | 0ms |
 | ✅ PASS | accepts valid HTTPS Google Docs & Presentation links | 0ms |
 | ✅ PASS | rejects dangerous javascript: pseudo-protocol XSS attempts | 0ms |
@@ -251,11 +251,11 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
-| ✅ PASS | generates correctly formatted wa.me URI with recipient number 919894481283 | 0ms |
+| ✅ PASS | generates correctly formatted wa.me URI with recipient number 919894481283 | 1ms |
 | ✅ PASS | contains all mandatory snapshot fields: course name, prices, student details | 0ms |
 | ✅ PASS | properly URL-encodes special characters and emojis without syntax corruption | 0ms |
 | ✅ PASS | enforces that enquiry submission never automatically grants course access | 0ms |
-| ✅ PASS | handles duplicate/idempotent submission without corrupting existing records | 1ms |
+| ✅ PASS | handles duplicate/idempotent submission without corrupting existing records | 0ms |
 
 ### 18. Admin Enquiry Management & Manual Payment Confirmation
 

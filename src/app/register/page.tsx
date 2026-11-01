@@ -91,7 +91,13 @@ export default function RegisterPage() {
         snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Course));
         setCourses(list);
         if (list.length > 0) {
-          setValue("selectedCourseId", list[0].id);
+          const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+          const preselectedId = urlParams?.get("courseId");
+          if (preselectedId && list.some((c) => c.id === preselectedId)) {
+            setValue("selectedCourseId", preselectedId);
+          } else {
+            setValue("selectedCourseId", list[0].id);
+          }
         }
       } catch (err) {
         console.warn("Could not load published courses:", err);
