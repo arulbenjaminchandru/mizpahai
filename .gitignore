@@ -49,6 +49,10 @@ firebase-export-*
 *-service-account*.json
 *-firebase-adminsdk*.json
 
+# Scratch
+scratch/
+
+
 # vercel
 .vercel
 
