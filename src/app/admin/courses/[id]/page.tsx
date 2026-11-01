@@ -11,7 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { extractYouTubeVideoId, validateDriveUrl } from "@/lib/validations";
+import {
+  extractYouTubeVideoId,
+  validateDriveUrl,
+  calculateDiscountPercentage,
+  formatIndianCurrency,
+  validateGoogleDriveBrochureUrl,
+} from "@/lib/validations";
 import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Course, Week, Module, Lesson, Resource } from "@/types";
@@ -28,6 +34,11 @@ import {
   ExternalLink,
   Loader2,
   CheckCircle2,
+  AlertCircle,
+  FileText,
+  Tag,
+  Download,
+  Sparkles,
 } from "lucide-react";
 
 export default function CourseBuilderPage({
@@ -69,6 +80,15 @@ export default function CourseBuilderPage({
   const [resourceDriveUrl, setResourceDriveUrl] = useState("");
   const [resourceFileType, setResourceFileType] = useState<string>("pdf");
 
+  // Pricing & Brochure states
+  const [actualPrice, setActualPrice] = useState<number>(15000);
+  const [currentPrice, setCurrentPrice] = useState<number>(7999);
+  const [pricingEnabled, setPricingEnabled] = useState<boolean>(true);
+  const [brochureUrl, setBrochureUrl] = useState<string>("");
+  const [brochureEnabled, setBrochureEnabled] = useState<boolean>(false);
+  const [isSavingPricing, setIsSavingPricing] = useState(false);
+  const [isSavingBrochure, setIsSavingBrochure] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchCourseData = async () => {
@@ -76,7 +96,13 @@ export default function CourseBuilderPage({
       // 1. Fetch course
       const courseDoc = await getDoc(doc(db, "courses", courseId));
       if (courseDoc.exists()) {
-        setCourse({ id: courseDoc.id, ...courseDoc.data() } as Course);
+        const cData = { id: courseDoc.id, ...courseDoc.data() } as Course;
+        setCourse(cData);
+        setActualPrice(typeof cData.actualPrice === "number" ? cData.actualPrice : 15000);
+        setCurrentPrice(typeof cData.currentPrice === "number" ? cData.currentPrice : 7999);
+        setPricingEnabled(cData.pricingEnabled !== false);
+        setBrochureUrl(cData.brochureUrl || "");
+        setBrochureEnabled(Boolean(cData.brochureEnabled));
       }
 
       // 2. Fetch weeks
@@ -387,6 +413,105 @@ export default function CourseBuilderPage({
     }
   };
 
+  const handleSavePricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const act = Number(actualPrice);
+    const cur = Number(currentPrice);
+    if (isNaN(act) || isNaN(cur) || act < 0 || cur < 0) {
+      toastError("Invalid Price", "Prices must be non-negative numbers.");
+      return;
+    }
+    if (cur > act) {
+      toastError("Invalid Price", "Current offer price cannot exceed actual course price.");
+      return;
+    }
+    setIsSavingPricing(true);
+    try {
+      const token = await user.getIdToken(true);
+      const res = await fetch(`/api/admin/courses/${courseId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          actualPrice: act,
+          currentPrice: cur,
+          pricingEnabled,
+          currency: "INR",
+        }),
+      });
+
+      if (res.ok) {
+        toastSuccess("Pricing Saved", "Course pricing configuration updated successfully.");
+        fetchCourseData();
+        return;
+      }
+
+      // Direct Firestore fallback
+      await updateDoc(doc(db, "courses", courseId), {
+        actualPrice: act,
+        currentPrice: cur,
+        pricingEnabled,
+        currency: "INR",
+        discountPercentage: calculateDiscountPercentage(act, cur),
+        updatedAt: serverTimestamp(),
+      });
+      toastSuccess("Pricing Saved", "Course pricing configuration updated.");
+      fetchCourseData();
+    } catch (err: any) {
+      toastError("Error", err.message || "Failed to save pricing");
+    } finally {
+      setIsSavingPricing(false);
+    }
+  };
+
+  const handleSaveBrochure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (brochureUrl && brochureUrl.trim() !== "") {
+      if (!validateGoogleDriveBrochureUrl(brochureUrl)) {
+        toastError("Invalid URL", "Please provide a valid HTTPS Google Drive link.");
+        return;
+      }
+    }
+    setIsSavingBrochure(true);
+    try {
+      const token = await user.getIdToken(true);
+      const res = await fetch(`/api/admin/courses/${courseId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          brochureUrl: brochureUrl.trim(),
+          brochureEnabled,
+        }),
+      });
+
+      if (res.ok) {
+        toastSuccess("Brochure Saved", "Course brochure configuration updated successfully.");
+        fetchCourseData();
+        return;
+      }
+
+      // Direct Firestore fallback
+      await updateDoc(doc(db, "courses", courseId), {
+        brochureUrl: brochureUrl.trim(),
+        brochureEnabled,
+        updatedAt: serverTimestamp(),
+      });
+      toastSuccess("Brochure Saved", "Course brochure configuration updated.");
+      fetchCourseData();
+    } catch (err: any) {
+      toastError("Error", err.message || "Failed to save brochure configuration");
+    } finally {
+      setIsSavingBrochure(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Back button and Course Header */}
@@ -424,6 +549,262 @@ export default function CourseBuilderPage({
             Add Week Milestone
           </Button>
         </div>
+      </div>
+
+      {/* Course Pricing Configuration & Course Brochure Configuration */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Course Pricing Configuration */}
+        <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 shadow-md">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                  <Tag className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base text-slate-900 dark:text-white">
+                    Course Pricing Configuration
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
+                    Set actual and current offer pricing with live discount calculations
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge
+                variant={pricingEnabled ? "default" : "secondary"}
+                className={`text-[10px] ${
+                  pricingEnabled
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                }`}
+              >
+                {pricingEnabled ? "Pricing: ON" : "Pricing: OFF"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSavePricing} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="actualPrice" className="text-xs">
+                    Actual Course Price (₹)
+                  </Label>
+                  <Input
+                    id="actualPrice"
+                    type="number"
+                    min="0"
+                    value={actualPrice}
+                    onChange={(e) => setActualPrice(Number(e.target.value))}
+                    className="h-9 text-xs"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400">Original price (e.g. ₹15,000)</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentPrice" className="text-xs">
+                    Current Offer Price (₹)
+                  </Label>
+                  <Input
+                    id="currentPrice"
+                    type="number"
+                    min="0"
+                    value={currentPrice}
+                    onChange={(e) => setCurrentPrice(Number(e.target.value))}
+                    className="h-9 text-xs"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400">Promotional price (e.g. ₹7,999)</p>
+                </div>
+              </div>
+
+              {/* Automatic Discount Display */}
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    Calculated Discount
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {actualPrice > currentPrice && actualPrice > 0
+                        ? `${calculateDiscountPercentage(actualPrice, currentPrice)}% OFF`
+                        : "No Discount (0%)"}
+                    </span>
+                    {actualPrice > currentPrice && (
+                      <span className="text-[11px] text-slate-400 line-through">
+                        {formatIndianCurrency(actualPrice)}
+                      </span>
+                    )}
+                    <span className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+                      {formatIndianCurrency(currentPrice)}
+                    </span>
+                  </div>
+                </div>
+
+                <Badge
+                  variant="outline"
+                  className="text-xs font-bold border-teal-500/40 text-teal-600 dark:text-teal-400 bg-teal-500/10"
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {calculateDiscountPercentage(actualPrice, currentPrice)}%
+                </Badge>
+              </div>
+
+              {/* Validation Alert if current > actual */}
+              {currentPrice > actualPrice && (
+                <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Current offer price cannot be greater than actual price.</span>
+                </div>
+              )}
+
+              {/* Pricing Enabled Toggle & Save Button */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={pricingEnabled}
+                    onChange={(e) => setPricingEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span>Pricing Enabled (Show on Student Portal)</span>
+                </label>
+
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingPricing || currentPrice > actualPrice || actualPrice < 0 || currentPrice < 0}
+                  className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs gap-1.5"
+                >
+                  {isSavingPricing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Save Pricing
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Course Brochure Configuration */}
+        <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90 shadow-md">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base text-slate-900 dark:text-white">
+                    Course Brochure Configuration
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
+                    Provide a Google Drive sharing link for course brochure download
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge
+                variant={brochureEnabled ? "default" : "secondary"}
+                className={`text-[10px] ${
+                  brochureEnabled
+                    ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                }`}
+              >
+                {brochureEnabled ? "Brochure: Enabled" : "Brochure: Disabled"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSaveBrochure} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="brochureUrl" className="text-xs">
+                  Brochure PDF Google Drive URL
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="brochureUrl"
+                    type="url"
+                    placeholder="https://drive.google.com/file/d/FILE_ID/view"
+                    value={brochureUrl}
+                    onChange={(e) => setBrochureUrl(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  {brochureUrl && validateGoogleDriveBrochureUrl(brochureUrl) && (
+                    <a
+                      href={brochureUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0"
+                    >
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 text-xs border-slate-300 dark:border-slate-700 gap-1 text-cyan-600 dark:text-cyan-400"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Preview
+                      </Button>
+                    </a>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Ensure the Google Drive file is set to &quot;Anyone with the link can view&quot;.
+                </p>
+              </div>
+
+              {brochureUrl && !validateGoogleDriveBrochureUrl(brochureUrl) && (
+                <div className="p-2.5 rounded-lg border border-red-500/30 bg-red-500/10 flex items-center gap-2 text-xs text-red-500">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Must be a valid HTTPS Google Drive URL (drive.google.com or docs.google.com).</span>
+                </div>
+              )}
+
+              {/* Brochure Availability & Save */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={brochureEnabled}
+                    onChange={(e) => setBrochureEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span>Brochure Available (Show Download Button)</span>
+                </label>
+
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={
+                    isSavingBrochure ||
+                    (brochureUrl.trim() !== "" && !validateGoogleDriveBrochureUrl(brochureUrl))
+                  }
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs gap-1.5"
+                >
+                  {isSavingBrochure ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Save Brochure
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Curriculum Weeks Hierarchy */}

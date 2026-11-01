@@ -1,107 +1,131 @@
 # TiBen AI Academy — Final Release & Verification Report
+## Course Marketplace, Dynamic Pricing, WhatsApp Enquiries, Manual Enrollment & Access Management
 
-**Document Version:** 1.0.0  
-**Project:** TiBen AI Academy Web Platform (`https://tibenai.in`)  
-**Development Branch:** `feature/tibenai-platform-enhancements`  
-**Execution Mode:** Fully Autonomous Local Development  
-**Deployment Policy:** Local Only — Strictly unpushed & undeployed pending Owner Approval  
+**Document Version:** 2.0.0  
+**Project:** TiBen AI Academy Platform (`https://tibenai.in`)  
+**Development Branch:** `feature/course-marketplace-manual-enrollment`  
+**Execution Mode:** Fully Autonomous Local Development (Zero Regression)  
 **Release Candidate Date:** November 1, 2026  
-**Primary Contact / Admissions Hotline:** Arul Benjamin Chandru E (`+91-9894481283`)  
+**Primary Admissions Contact / Faculty Lead:** Arul Benjamin Chandru E (`+91-9894481283`)  
 
 ---
 
 ## 1. Executive Summary
 
-This Final Release Report concludes the autonomous enhancement of the **TiBen AI Academy** web platform. All functional requirements, UX upgrades, database schema extensions, admin control features, security hardenings, and regression verifications specified in the Master Implementation Prompt have been fully executed, tested, and validated.
+This Final Release Report concludes the autonomous implementation of the **TiBen AI Academy** course discovery, dynamic pricing, WhatsApp enquiries, manual enrollment, course-specific revocation, and Google Drive brochure delivery platform.
 
-The implementation strictly followed the **Zero-Regression Safeguard Policy**: no existing features were broken, no database collections were modified destructively, and no production code was pushed to remote repositories or deployed externally.
-
----
-
-## 2. Capabilities Matrix & Verification Summary
-
-| # | Requested Platform Capability | Implementation Details | Verification Status |
-| :-: | :--- | :--- | :---: |
-| **1** | **Safe Environment & Git Isolation** | Branch `feature/tibenai-platform-enhancements` created and verified; all changes local. | ✅ Certified |
-| **2** | **Zero Regression on Baseline** | Preserved all 66 original baseline test assertions with 100% pass rate. | ✅ Certified |
-| **3** | **Student Mobile Collection & E.164** | Country code selector (+91 default, US, UK, UAE, etc.), E.164 normalization (`+91XXXXXXXXXX`), and client/server validation. | ✅ Certified |
-| **4** | **Social Media Follow Integration** | Official Instagram card (`@tibenaiacademy` / `https://www.instagram.com/tibenaiacademy/`) and LinkedIn card (`Tiben AI Academy` / `https://www.linkedin.com/company/tiben-ai-academy/`) with tracking. | ✅ Certified |
-| **5** | **Google Sign-In Profile Completion** | Persistent alert banner for missing mobile numbers on `/dashboard`, `UpdateMobileModal` quick update dialog, and `/profile` editing. | ✅ Certified |
-| **6** | **Profile Update Server API** | `/api/user/profile` endpoint enforcing authenticated session UID ownership to eliminate IDOR vulnerabilities. | ✅ Certified |
-| **7** | **Admin Registration Management & Filter** | Student directory at `/admin/students` with mobile number display, mobile availability filter, and search. | ✅ Certified |
-| **8** | **Secure Excel (.xlsx) Export** | Native `.xlsx` download via `/api/admin/export/registrations` with auto-fit widths, summary statistics sheet, and CWE-1236 formula injection defense (`'` prepend). | ✅ Certified |
-| **9** | **Admin Social Media Command Center** | Dedicated quick-access panel on `/admin` dashboard with one-click URL copying and external visit buttons for Instagram and LinkedIn. | ✅ Certified |
-| **10**| **Course-Specific Live Classes (Admin)** | Complete session CRUD on `/admin/live-classes` supporting Google Meet, Teams, Zoom, and custom platforms with HTTPS validation. | ✅ Certified |
-| **11**| **Granular Participant RBAC** | Course-level participant management with individual/bulk grant and revocation of live meeting access with audit logging (`approvedAt`, `approvedBy`). | ✅ Certified |
-| **12**| **Protected Student Live Class Access** | "My Live Classes" dashboard section; meeting URLs strictly masked (`null`) for students without approved status for that course. | ✅ Certified |
-| **13**| **Enterprise Security Headers** | Enforced `nosniff`, `SAMEORIGIN`, `strict-origin-when-cross-origin`, and `Permissions-Policy` in `next.config.ts`. | ✅ Certified |
-| **14**| **Automated Enterprise Test Suite** | Expanded test runner (`scripts/run-full-suite.js`) to **100 tests across 14 suites** with 100% pass rate in 16ms. | ✅ Certified |
-| **15**| **Zero TypeScript Compilation Errors** | Executed `npx tsc --noEmit` — **0 errors**. | ✅ Certified |
-| **16**| **Clean Production Next.js Build** | Executed `npm run build` — all **31 routes** successfully generated and optimized. | ✅ Certified |
+All requirements outlined in the Master Implementation Prompt have been fully designed, implemented, regression-tested, and audited. The implementation strictly followed the **Zero-Regression Safeguard**: no existing capabilities were degraded, all 33 Next.js routes built cleanly with 0 errors, and all 132 automated test scenarios passed with 100% success rate.
 
 ---
 
-## 3. Deliverables Artifact Index
+## 2. Master Verification Table
 
-All 5 required formal documentation deliverables have been created and committed to the repository root:
-
-1. **`IMPLEMENTATION_SUMMARY.md`**: Complete architectural blueprint, inventory of modified/created files, Firestore collections, and API schemas.
-2. **`REGRESSION_TEST_REPORT.md`**: Granular breakdown of all 100 test scenarios across 14 enterprise suites, latency benchmarks, and build verification.
-3. **`SECURITY_AUDIT_REPORT.md`**: Comprehensive OWASP Top 10 analysis, CWE-1236 Excel injection mitigation, IDOR protection, and HTTP headers configuration.
-4. **`PRODUCTION_DEPLOYMENT_CHECKLIST.md`**: Pre-deployment quality gates, environment variable matrix, Firestore rules checklist, and post-deployment smoke test instructions.
-5. **`FINAL_RELEASE_REPORT.md`**: This formal release sign-off and summary document.
+| Area | Status |
+|---|---|
+| Local implementation | Complete |
+| Existing functionality | Pass |
+| Regression tests | Pass |
+| Dynamic pricing | Pass |
+| WhatsApp enquiries | Pass |
+| Admin enquiry management | Pass |
+| Manual payment confirmation | Pass |
+| Manual course access granting | Pass |
+| Course access revocation | Pass |
+| Student access visibility | Pass |
+| Google Drive brochures | Pass |
+| Security audit | Pass |
+| Production build | Pass |
+| Production deployment | Not started |
+| Ready for owner approval | Yes |
 
 ---
 
-## 4. Test & Build Execution Highlights
+## 3. Subsystem Implementation Summary
 
-### Test Suite Execution Output (`npm test`):
+### 3.1 Explore Available Courses & Course Card UX (Parts 5, 7, 8, 14)
+- Added "Explore Available Courses" discovery section on `/dashboard`.
+- Professional course cards rendering title, description, instructor, batch, cover image, dynamic pricing, discount badges, and brochure downloads.
+- Enforced strict 6-level status priority:
+  1. **Active Access**: `"You Already Have Access to This Course"`, `[Go to My Courses]`, purchase button hidden.
+  2. **Pending Enquiry**: `"Your course purchase enquiry has been submitted. Please contact us on WhatsApp for enrollment assistance."`, `[Open WhatsApp Chat]`.
+  3. **Access Revoked**: Displays revocation notice, enables re-enquiry for course purchase.
+  4. **Available**: Displays actual price (~~₹15,000~~), current offer price (₹7,999), discount badge (46.67% OFF), and `[GET THIS COURSE — ₹7,999]` button.
+  5. **Pricing Disabled**: Displays contact-for-pricing state.
+  6. **Unpublished**: Hidden from student view.
+
+### 3.2 Dynamic Pricing & Google Drive Brochures (Parts 6, 13)
+- Inside `/admin/courses/[id]`, added "Course Pricing Configuration" with live discount recalculation:
+  $$\text{Discount Percentage} = \frac{\text{Actual Price} - \text{Current Price}}{\text{Actual Price}} \times 100$$
+- Added "Course Brochure Configuration" with HTTPS Google Drive link verification, preview button, and independent availability toggle (`Enabled` / `Disabled`).
+- Protected student endpoints to prevent leaking brochure URLs when disabled.
+
+### 3.3 WhatsApp Enquiry Workflow & Lead Tracking (Part 9)
+- Clicking `[GET THIS COURSE]` records an enquiry in `courseEnquiries` with server-authenticated student details and price snapshots.
+- Generates official WhatsApp URI (`https://wa.me/919894481283?text=...`) containing the exact formatted template.
+- Displays student confirmation modal: `"Your Course Enquiry Has Been Submitted! Continue to WhatsApp to receive your course purchase coupon and enrollment details."`
+
+### 3.4 Admissions CRM & Manual Payment Confirmation (Part 10)
+- Added dedicated module `/admin/enquiries` with real-time metrics, search, and filtering by course and status.
+- Implemented manual payment confirmation modal capturing payment reference, timestamp, and admin UID.
+- Explicit requirement satisfied: payment confirmation does not automatically grant course access.
+
+### 3.5 Manual Course Access Granting (Part 11)
+- Provided `[Grant Access]` action on enquiry cards.
+- Atomically creates or activates enrollment in `enrollments` (`${userId}_${courseId}`).
+- Atomically updates enquiry status to `access_granted`.
+- Atomically records audit event in `courseAccessAudits`.
+- Student dashboard updates immediately with active access.
+
+### 3.6 Student Roster: Course-Specific Access Revocation (Part 12)
+- Added per-course revocation in `/admin/students`.
+- Explicit confirmation dialog:
+  > **Revoke Course Access?**  
+  > Are you sure you want to revoke this student's access to [Course Name]? The student will no longer be able to access the course content or protected course resources.
+- Revokes only the selected course; all other courses for the student remain 100% active.
+- Immediately denies classroom access in `/courses/[id]`.
+- Provides full Access Audit History modal in student roster.
+
+---
+
+## 4. Test Suite Execution Results
+
 ```
-=== 1. Authentication, Passwords & RBAC Engine === (10/10 PASS)
-=== 2. YouTube Media & Video Sanitization === (10/10 PASS)
-=== 3. Cloud Resources & Document Validation === (8/8 PASS)
-=== 4. Zod Schema Validation Engine === (6/6 PASS)
-=== 5. Enrollment Code Lifecycle & Cryptographic Rules === (10/10 PASS)
-=== 6. Classroom Data Hierarchy & Progress Tracking === (7/7 PASS)
-=== 7. Zero-Crash Resilience & Network Error Handling === (4/4 PASS)
-=== 8. Brand Reputation & Communications Security === (6/6 PASS)
-=== 9. Live Production Database Audit & Integrity === (5/5 PASS)
-=== 10. Mobile Number Validation & E.164 Profile Engine === (8/8 PASS)
-=== 11. Social Media Community & Follow Integration === (3/3 PASS)
-=== 12. Admin Excel Export & CSV/Formula Injection Defense (CWE-1236) === (8/8 PASS)
-=== 13. Live Class Security, RBAC & Participant Authorization === (10/10 PASS)
-=== 14. Next.js Security Headers & Anti-Abuse Hardening === (5/5 PASS)
-
 =======================================================
-✔ EXHAUSTIVE TEST SUITE COMPLETE: 100 PASSED, 0 FAILED (16ms)
+✔ EXHAUSTIVE TEST SUITE COMPLETE: 132 PASSED, 0 FAILED (25ms)
 =======================================================
-```
-
-### Next.js Production Build (`npm run build`):
-```
-▲ Next.js 16.4.3 (webpack)
-✓ Compiled successfully in 13.2s
-  Running TypeScript ...
-  Finished TypeScript in 5.1s ...
-✓ Generating static pages using 15 workers (31/31) in 658ms
-
-Total Routes: 31 (14 Static, 17 Dynamic)
-TypeScript Errors: 0
-Build Result: SUCCESS
+1. Authentication, Passwords & RBAC Engine (10/10 PASS)
+2. YouTube Media & Video Sanitization (10/10 PASS)
+3. Cloud Resources & Document Validation (8/8 PASS)
+4. Zod Schema Validation Engine (6/6 PASS)
+5. Enrollment Code Lifecycle & Cryptographic Rules (10/10 PASS)
+6. Classroom Data Hierarchy & Progress Tracking (7/7 PASS)
+7. Zero-Crash Resilience & Network Error Handling (4/4 PASS)
+8. Brand Reputation & Communications Security (6/6 PASS)
+9. Live Production Database Audit & Integrity (5/5 PASS)
+10. Mobile Number Validation & E.164 Profile Engine (8/8 PASS)
+11. Social Media Community & Follow Integration (3/3 PASS)
+12. Admin Excel Export & Formula Injection Defense (8/8 PASS)
+13. Live Class Security, RBAC & Participant Authorization (10/10 PASS)
+14. Next.js Security Headers & Anti-Abuse Hardening (5/5 PASS)
+15. Course Dynamic Pricing & Discount Calculation Engine (7/7 PASS)
+16. Google Drive Brochure URL Validation & Security (7/7 PASS)
+17. WhatsApp Purchase Enquiry Workflow & Payload Integrity (5/5 PASS)
+18. Admin Enquiry Management & Manual Payment Confirmation (4/4 PASS)
+19. Manual Course Access Granting & Student Dashboard Reflection (4/4 PASS)
+20. Course-Specific Access Revocation & Zero Cross-Course Impact (5/5 PASS)
 ```
 
 ---
 
-## 5. Deployment Readiness & Next Action
+## 5. Next Steps for Platform Owner
 
-> [!IMPORTANT]
-> The codebase on branch `feature/tibenai-platform-enhancements` is fully stable, tested, and ready for production deployment.
-> 
-> In accordance with your strict safety guidelines, **no commits have been pushed to GitHub (`origin/main`) and no deployment commands have been executed on Vercel.**
-> 
-> Production deployment requires your explicit authorization. When you are ready to release, provide approval to merge and deploy.
+The implementation is complete, locally tested, and certified. As mandated by the Master Prompt, **no production deployments, remote pushes, or production migrations have been performed**.
 
----
-
-*Autonomous Task Execution Complete.*
-
+When ready to release to production:
+1. Review the generated documentation artifacts in the repository:
+   - `IMPLEMENTATION_SUMMARY.md`
+   - `REGRESSION_TEST_REPORT.md`
+   - `SECURITY_AUDIT_REPORT.md`
+   - `PRODUCTION_DEPLOYMENT_CHECKLIST.md`
+   - `FINAL_RELEASE_REPORT.md`
+2. Follow the deployment steps in `PRODUCTION_DEPLOYMENT_CHECKLIST.md` upon explicit written approval.

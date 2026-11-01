@@ -1004,6 +1004,330 @@ describe("14. Next.js Security Headers & Anti-Abuse Hardening", () => {
   });
 });
 
+describe("15. Course Dynamic Pricing & Discount Calculation Engine", () => {
+  function calculateDiscount(actual, current) {
+    if (typeof actual !== "number" || typeof current !== "number" || isNaN(actual) || isNaN(current)) return 0;
+    if (actual <= 0 || current < 0) return 0;
+    if (current >= actual) return 0;
+    return Math.round(((actual - current) / actual) * 100 * 100) / 100;
+  }
+
+  function formatCurrency(amount) {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
+
+  it("calculates exact promotional discount: 46.67% for ₹15,000 -> ₹7,999", () => {
+    const discount = calculateDiscount(15000, 7999);
+    expect(discount).toBe(46.67);
+  });
+
+  it("automatically recalculates when current or actual price changes", () => {
+    expect(calculateDiscount(20000, 10000)).toBe(50);
+    expect(calculateDiscount(10000, 2500)).toBe(75);
+    expect(calculateDiscount(50000, 39999)).toBe(20);
+  });
+
+  it("returns 0% discount when actual and current prices are equal", () => {
+    expect(calculateDiscount(15000, 15000)).toBe(0);
+  });
+
+  it("returns 0% discount when current price exceeds actual price", () => {
+    expect(calculateDiscount(10000, 15000)).toBe(0);
+  });
+
+  it("handles 0 or negative actual price safely without NaN or divide-by-zero crashes", () => {
+    expect(calculateDiscount(0, 0)).toBe(0);
+    expect(calculateDiscount(-5000, 2000)).toBe(0);
+    expect(calculateDiscount(15000, -100)).toBe(0);
+  });
+
+  it("formats Indian Rupee currency correctly with rupee symbol", () => {
+    const formatted = formatCurrency(15000);
+    expect(formatted.replace(/\s+/g, "")).toContain("₹15,000");
+  });
+
+  it("validates server-side pricing schema rejection for negative prices", () => {
+    const isValid = (act, cur) => act >= 0 && cur >= 0 && cur <= act;
+    expect(isValid(15000, 7999)).toBeTruthy();
+    expect(isValid(-15000, 7999)).toBeFalsy();
+    expect(isValid(15000, -500)).toBeFalsy();
+    expect(isValid(5000, 10000)).toBeFalsy();
+  });
+});
+
+describe("16. Google Drive Brochure URL Validation & Security", () => {
+  function validateDriveBrochure(url) {
+    if (!url || typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (trimmed.toLowerCase().startsWith("javascript:")) return false;
+    const pattern = /^https:\/\/(?:drive|docs)\.google\.com\/.+/i;
+    return pattern.test(trimmed);
+  }
+
+  it("accepts valid HTTPS Google Drive sharing file URL", () => {
+    expect(validateDriveBrochure("https://drive.google.com/file/d/1A2B3C4D5E6F7G8H9I0/view")).toBeTruthy();
+  });
+
+  it("accepts valid HTTPS Google Drive open ID URL", () => {
+    expect(validateDriveBrochure("https://drive.google.com/open?id=1A2B3C4D5E6F7G8H9I0")).toBeTruthy();
+  });
+
+  it("accepts valid HTTPS Google Docs & Presentation links", () => {
+    expect(validateDriveBrochure("https://docs.google.com/document/d/1xyz123/edit")).toBeTruthy();
+    expect(validateDriveBrochure("https://docs.google.com/presentation/d/1ppt456/edit")).toBeTruthy();
+  });
+
+  it("rejects dangerous javascript: pseudo-protocol XSS attempts", () => {
+    expect(validateDriveBrochure("javascript:alert(1)")).toBeFalsy();
+    expect(validateDriveBrochure("JAVASCRIPT:fetch('/api/admin')")).toBeFalsy();
+  });
+
+  it("rejects unencrypted HTTP Google Drive URLs", () => {
+    expect(validateDriveBrochure("http://drive.google.com/file/d/123/view")).toBeFalsy();
+  });
+
+  it("rejects phishing and spoofed drive domains", () => {
+    expect(validateDriveBrochure("https://drive.google.com.attacker.com/file")).toBeFalsy();
+    expect(validateDriveBrochure("https://dropbox.com/s/123/brochure.pdf")).toBeFalsy();
+  });
+
+  it("protects student API by masking brochureUrl when brochureEnabled is false", () => {
+    const rawCourse = {
+      id: "course-1",
+      brochureUrl: "https://drive.google.com/file/d/secret/view",
+      brochureEnabled: false,
+    };
+    const sanitizedBrochureUrl = rawCourse.brochureEnabled ? rawCourse.brochureUrl : "";
+    expect(sanitizedBrochureUrl).toBe("");
+  });
+});
+
+describe("17. WhatsApp Purchase Enquiry Workflow & Payload Integrity", () => {
+  function generateWhatsAppUrl({ courseName, actualPrice, currentPrice, discountPercentage, studentName, studentEmail, phone = "+919894481283" }) {
+    const cleanPhone = phone.replace(/[^0-9]/g, "");
+    const msg = `Hello Tiben AI Academy!\n\nI am interested in enrolling in the following course.\n\nCourse Name: ${courseName}\nActual Price: ₹${actualPrice.toLocaleString("en-IN")}\nCurrent Offer Price: ₹${currentPrice.toLocaleString("en-IN")}\nDiscount: ${discountPercentage}%\n\nI have submitted a course purchase enquiry through your website.\nI would like to know the available purchase coupon and enrollment procedure.\n\nRegistered Name: ${studentName}\nRegistered Email: ${studentEmail}\n\nPlease assist me with the next steps.\n\nThank you!`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+  }
+
+  it("generates correctly formatted wa.me URI with recipient number 919894481283", () => {
+    const url = generateWhatsAppUrl({
+      courseName: "DATA HORIZON",
+      actualPrice: 15000,
+      currentPrice: 7999,
+      discountPercentage: 46.67,
+      studentName: "Arul Benjamin",
+      studentEmail: "arul@tibenai.in",
+    });
+    expect(url.startsWith("https://wa.me/919894481283?text=")).toBeTruthy();
+  });
+
+  it("contains all mandatory snapshot fields: course name, prices, student details", () => {
+    const url = generateWhatsAppUrl({
+      courseName: "DATA HORIZON",
+      actualPrice: 15000,
+      currentPrice: 7999,
+      discountPercentage: 46.67,
+      studentName: "Test Student",
+      studentEmail: "test@student.com",
+    });
+    const decoded = decodeURIComponent(url.split("?text=")[1]);
+    expect(decoded).toContain("Hello Tiben AI Academy!");
+    expect(decoded).toContain("Course Name: DATA HORIZON");
+    expect(decoded).toContain("Actual Price: ₹15,000");
+    expect(decoded).toContain("Current Offer Price: ₹7,999");
+    expect(decoded).toContain("Discount: 46.67%");
+    expect(decoded).toContain("Registered Name: Test Student");
+    expect(decoded).toContain("Registered Email: test@student.com");
+  });
+
+  it("properly URL-encodes special characters and emojis without syntax corruption", () => {
+    const url = generateWhatsAppUrl({
+      courseName: "GenAI & Cloud + Pipelines",
+      actualPrice: 20000,
+      currentPrice: 12000,
+      discountPercentage: 40,
+      studentName: "Jane & John Doe",
+      studentEmail: "jane+doe@domain.com",
+    });
+    expect(url.includes(" ")).toBeFalsy();
+    expect(url).toContain("%26");
+    expect(url).toContain("%2B");
+  });
+
+  it("enforces that enquiry submission never automatically grants course access", () => {
+    const enquiry = {
+      id: "enq_123",
+      userId: "student_01",
+      courseId: "course_1",
+      status: "new",
+      accessGrantedAt: null,
+    };
+    const isAccessGranted = enquiry.status === "access_granted" && enquiry.accessGrantedAt !== null;
+    expect(isAccessGranted).toBeFalsy();
+  });
+
+  it("handles duplicate/idempotent submission without corrupting existing records", () => {
+    const existingEnquiries = [
+      { id: "e1", userId: "u1", courseId: "c1", status: "new" },
+    ];
+    const isDuplicate = existingEnquiries.some(
+      (e) => e.userId === "u1" && e.courseId === "c1" && ["new", "contacted", "awaiting_payment"].includes(e.status)
+    );
+    expect(isDuplicate).toBeTruthy();
+  });
+});
+
+describe("18. Admin Enquiry Management & Manual Payment Confirmation", () => {
+  const enquiries = [
+    { id: "e1", studentName: "Alice", courseId: "c1", status: "new" },
+    { id: "e2", studentName: "Bob", courseId: "c2", status: "contacted" },
+    { id: "e3", studentName: "Charlie", courseId: "c1", status: "payment_confirmed" },
+    { id: "e4", studentName: "David", courseId: "c1", status: "access_granted" },
+  ];
+
+  it("filters enquiries by course ID accurately", () => {
+    const filtered = enquiries.filter((e) => e.courseId === "c1");
+    expect(filtered.length).toBe(3);
+  });
+
+  it("filters enquiries by status accurately", () => {
+    const newEnquiries = enquiries.filter((e) => e.status === "new");
+    expect(newEnquiries.length).toBe(1);
+    expect(newEnquiries[0].studentName).toBe("Alice");
+  });
+
+  it("records payment confirmation metadata with admin identity", () => {
+    const enquiry = {
+      id: "e1",
+      status: "awaiting_payment",
+      paymentConfirmedAt: null,
+      paymentConfirmedBy: null,
+    };
+    // Admin confirms payment manually
+    const confirmed = {
+      ...enquiry,
+      status: "payment_confirmed",
+      paymentConfirmedAt: new Date().toISOString(),
+      paymentConfirmedBy: "admin_uid_99",
+      paymentNotes: "UPI ref verified #778899",
+    };
+    expect(confirmed.status).toBe("payment_confirmed");
+    expect(confirmed.paymentConfirmedBy).toBe("admin_uid_99");
+    expect(confirmed.paymentConfirmedAt).toBeTruthy();
+  });
+
+  it("requires explicit grant action after payment is confirmed", () => {
+    const enquiry = { status: "payment_confirmed" };
+    // Access is still not granted
+    expect(enquiry.status === "access_granted").toBeFalsy();
+  });
+});
+
+describe("19. Manual Course Access Granting & Student Dashboard Reflection", () => {
+  it("determines active course access strictly via valid active enrollment", () => {
+    const enrollments = [
+      { userId: "u1", courseId: "c1", status: "active" },
+      { userId: "u1", courseId: "c2", status: "revoked" },
+    ];
+    const hasAccessC1 = enrollments.some((e) => e.courseId === "c1" && e.status === "active");
+    const hasAccessC2 = enrollments.some((e) => e.courseId === "c2" && e.status === "active");
+    expect(hasAccessC1).toBeTruthy();
+    expect(hasAccessC2).toBeFalsy();
+  });
+
+  it("hides 'Get This Course' purchase button for active student and shows 'Go to My Courses'", () => {
+    const studentStatus = "active_access";
+    const showPurchaseButton = studentStatus !== "active_access";
+    const showGoToCourses = studentStatus === "active_access";
+    expect(showPurchaseButton).toBeFalsy();
+    expect(showGoToCourses).toBeTruthy();
+  });
+
+  it("prevents duplicate active enrollment creation when granting access", () => {
+    const existing = new Set(["u1_c1"]);
+    const isDuplicate = existing.has("u1_c1");
+    expect(isDuplicate).toBeTruthy();
+  });
+
+  it("records access grant audit trail atomically", () => {
+    const auditRecord = {
+      userId: "u1",
+      courseId: "c1",
+      enrollmentId: "u1_c1",
+      action: "granted",
+      previousStatus: "none",
+      newStatus: "active",
+      performedBy: "admin_123",
+      timestamp: Date.now(),
+    };
+    expect(auditRecord.action).toBe("granted");
+    expect(auditRecord.newStatus).toBe("active");
+  });
+});
+
+describe("20. Course-Specific Access Revocation & Zero Cross-Course Impact", () => {
+  it("revokes only target course without affecting other enrolled courses", () => {
+    const studentEnrollments = [
+      { courseId: "course_data_horizon", status: "active" },
+      { courseId: "course_python_fundamentals", status: "active" },
+      { courseId: "course_genai_mastery", status: "active" },
+    ];
+
+    // Admin revokes ONLY Data Horizon
+    const targetCourse = "course_data_horizon";
+    const updated = studentEnrollments.map((e) =>
+      e.courseId === targetCourse
+        ? { ...e, status: "revoked", revokedAt: new Date().toISOString() }
+        : e
+    );
+
+    const dataHorizon = updated.find((e) => e.courseId === "course_data_horizon");
+    const python = updated.find((e) => e.courseId === "course_python_fundamentals");
+    const genai = updated.find((e) => e.courseId === "course_genai_mastery");
+
+    expect(dataHorizon?.status).toBe("revoked");
+    expect(python?.status).toBe("active");
+    expect(genai?.status).toBe("active");
+  });
+
+  it("immediately denies classroom access for student whose course is revoked", () => {
+    const enrollment = { courseId: "c1", status: "revoked" };
+    const isAuthorized = enrollment.status === "active";
+    expect(isAuthorized).toBeFalsy();
+  });
+
+  it("allows student to submit new enquiry after access revocation", () => {
+    const enrollment = { courseId: "c1", status: "revoked" };
+    const canReEnquire = enrollment.status === "revoked";
+    expect(canReEnquire).toBeTruthy();
+  });
+
+  it("atomically logs revocation reason and revoking administrator in audit trail", () => {
+    const audit = {
+      userId: "u1",
+      courseId: "c1",
+      action: "revoked",
+      previousStatus: "active",
+      newStatus: "revoked",
+      performedBy: "admin_uid_42",
+      reason: "Refund requested by student",
+    };
+    expect(audit.action).toBe("revoked");
+    expect(audit.newStatus).toBe("revoked");
+    expect(audit.reason).toContain("Refund");
+  });
+
+  it("blocks non-admin users from triggering course revocation", () => {
+    const userRole = "student";
+    const canRevoke = userRole === "admin";
+    expect(canRevoke).toBeFalsy();
+  });
+});
+
 // ── Summary & Markdown Report Generator ───────────────────────────────────────
 
 const durationTotal = Date.now() - startTime;

@@ -35,6 +35,13 @@ export interface Course {
   startDate: Timestamp;
   endDate: Timestamp;
   isPublished: boolean;
+  actualPrice?: number;
+  currentPrice?: number;
+  currency?: string;
+  pricingEnabled?: boolean;
+  discountPercentage?: number;
+  brochureUrl?: string;
+  brochureEnabled?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -126,7 +133,7 @@ export interface EnrollmentCode {
 
 // ─── Enrollment ──────────────────────────────────────────────────────────────
 
-export type EnrollmentStatus = "active" | "suspended";
+export type EnrollmentStatus = "active" | "suspended" | "revoked";
 
 export interface Enrollment {
   id: string;
@@ -136,6 +143,71 @@ export interface Enrollment {
   enrollmentCodeId: string;
   enrolledAt: Timestamp;
   status: EnrollmentStatus;
+  grantedBy?: string;
+  grantedAt?: Timestamp | null;
+  revokedAt?: Timestamp | null;
+  revokedBy?: string | null;
+  revocationReason?: string | null;
+}
+
+// ─── Course Purchase Enquiry ─────────────────────────────────────────────────
+
+export type CourseEnquiryStatus =
+  | "new"
+  | "contacted"
+  | "awaiting_payment"
+  | "payment_under_verification"
+  | "payment_confirmed"
+  | "access_granted"
+  | "rejected"
+  | "cancelled";
+
+export interface CourseEnquiry {
+  id: string;
+  userId: string;
+  studentName: string;
+  studentEmail: string;
+  studentPhoneNumber?: string | null;
+  courseId: string;
+  courseNameSnapshot: string;
+  actualPriceSnapshot: number;
+  currentPriceSnapshot: number;
+  discountSnapshot: number;
+  status: CourseEnquiryStatus;
+  adminNotes?: string;
+  paymentConfirmedAt?: Timestamp | null;
+  paymentConfirmedBy?: string | null;
+  paymentNotes?: string;
+  accessGrantedAt?: Timestamp | null;
+  accessGrantedBy?: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ─── Course Access Audit Log ─────────────────────────────────────────────────
+
+export interface CourseAccessAudit {
+  id: string;
+  userId: string;
+  courseId: string;
+  enrollmentId: string;
+  studentName?: string;
+  studentEmail?: string;
+  action: "granted" | "revoked";
+  previousStatus?: string;
+  newStatus: string;
+  performedBy: string; // admin UID
+  performedByEmail?: string;
+  reason?: string;
+  createdAt: Timestamp;
+}
+
+// ─── Academy Settings ────────────────────────────────────────────────────────
+
+export interface AcademySettings {
+  whatsappNumber: string;
+  updatedAt?: Timestamp;
+  updatedBy?: string;
 }
 
 // ─── Lesson Progress ─────────────────────────────────────────────────────────

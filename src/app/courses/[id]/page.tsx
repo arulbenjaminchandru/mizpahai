@@ -72,12 +72,12 @@ function CoursePlayerContent({
       if (!user) return;
 
       try {
-        // 1. Verify student enrollment or admin privilege
+        // 1. Verify student enrollment or admin privilege (must be active)
         if (!isAdmin) {
           const enrollmentDoc = await getDoc(
             doc(db, "enrollments", `${user.uid}_${courseId}`)
           );
-          if (!enrollmentDoc.exists()) {
+          if (!enrollmentDoc.exists() || enrollmentDoc.data()?.status !== "active") {
             setIsAuthorized(false);
             setLoading(false);
             return;

@@ -31,8 +31,12 @@ import {
   FileSpreadsheet,
   Phone,
   PhoneOff,
+  History,
+  XCircle,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
-import type { User, Course } from "@/types";
+import type { User, Course, CourseAccessAudit } from "@/types";
 
 export default function AdminStudentsPage() {
   const { user } = useAuth();
@@ -51,6 +55,18 @@ export default function AdminStudentsPage() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Revoke course access modal state
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false);
+  const [revokeStudent, setRevokeStudent] = useState<User | null>(null);
+  const [revokeCourse, setRevokeCourse] = useState<{ id: string; name: string } | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  // Access audit log modal state
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<CourseAccessAudit[]>([]);
+  const [loadingAudits, setLoadingAudits] = useState(false);
 
   const fetchStudents = async () => {
     if (!user) return;
@@ -344,6 +360,68 @@ export default function AdminStudentsPage() {
     }
   };
 
+  const openRevokeModal = (student: User, courseId: string, courseName: string) => {
+    setRevokeStudent(student);
+    setRevokeCourse({ id: courseId, name: courseName });
+    setRevokeReason("");
+    setRevokeModalOpen(true);
+  };
+
+  const handleConfirmRevoke = async () => {
+    if (!user || !revokeStudent || !revokeCourse) return;
+    setIsRevoking(true);
+    try {
+      const token = await user.getIdToken(true);
+      const res = await fetch("/api/admin/students/revoke-course", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: revokeStudent.uid,
+          courseId: revokeCourse.id,
+          reason: revokeReason.trim() || "Revoked by administrator",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to revoke course access");
+      }
+
+      toastSuccess(
+        "Course Access Revoked",
+        `Access to "${revokeCourse.name}" has been revoked for ${revokeStudent.displayName || revokeStudent.email}.`
+      );
+      setRevokeModalOpen(false);
+      fetchStudents();
+    } catch (err: any) {
+      toastError("Revocation Failed", err.message);
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
+  const openAuditModal = async () => {
+    setAuditModalOpen(true);
+    setLoadingAudits(true);
+    try {
+      const token = await user?.getIdToken(true);
+      const res = await fetch("/api/admin/access-audits", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuditLogs(data.audits || []);
+      }
+    } catch (err: any) {
+      toastError("Failed to load audit logs", err.message);
+    } finally {
+      setLoadingAudits(false);
+    }
+  };
+
   // Filter students based on mobile number status
   const filteredStudents = students.filter((st) => {
     const hasPhone = Boolean(st.phoneNumber && st.phoneNumber.trim().length > 0);
@@ -364,18 +442,30 @@ export default function AdminStudentsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={handleExportExcel}
-          disabled={isExporting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs shadow-sm"
-        >
-          {isExporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <FileSpreadsheet className="h-4 w-4" />
-          )}
-          <span>Export to Excel (.xlsx)</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openAuditModal}
+            className="border-slate-300 dark:border-slate-700 text-xs gap-1.5 h-9"
+          >
+            <History className="h-3.5 w-3.5 text-teal-500" />
+            <span>Access Audit History</span>
+          </Button>
+
+          <Button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs shadow-sm h-9"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            <span>Export to Excel (.xlsx)</span>
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filter Toolbar */}
@@ -498,18 +588,55 @@ export default function AdminStudentsPage() {
                     {(() => {
                       const studentEnrollments = enrollmentsMap[st.uid] || [];
                       return (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           {studentEnrollments.length > 0 ? (
                             studentEnrollments.map((enr, idx) => {
                               const course = courses.find((c) => c.id === enr.courseId);
+                              const cName = course?.name || enr.courseId;
+                              const isRevoked = enr.status === "revoked";
+
                               return (
-                                <Badge
+                                <div
                                   key={idx}
-                                  variant="default"
-                                  className="text-[10px] bg-[#0D9488]/15 text-[#0D9488] dark:text-[#14b8a6] border border-[#0D9488]/30 font-medium"
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] ${
+                                    isRevoked
+                                      ? "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                      : "border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300"
+                                  }`}
                                 >
-                                  ✓ Enrolled: {course?.name || enr.courseId} ({enr.batchName || "2026"})
-                                </Badge>
+                                  <span className="font-semibold">
+                                    {isRevoked ? "✗ Revoked:" : "✓ Active:"} {cName}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    ({enr.batchName || "Batch 2026"})
+                                  </span>
+
+                                  {!isRevoked && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openRevokeModal(st, enr.courseId, cName)}
+                                      className="ml-1 text-[10px] text-rose-500 hover:text-rose-700 underline font-medium cursor-pointer"
+                                      title="Revoke access to this course"
+                                    >
+                                      Revoke
+                                    </button>
+                                  )}
+
+                                  {isRevoked && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedStudent(st);
+                                        setSelectedCourseId(enr.courseId);
+                                        setIsAssignModalOpen(true);
+                                      }}
+                                      className="ml-1 text-[10px] text-teal-600 dark:text-teal-400 hover:underline font-medium cursor-pointer"
+                                      title="Reactivate course access"
+                                    >
+                                      Re-grant
+                                    </button>
+                                  )}
+                                </div>
                               );
                             })
                           ) : (
@@ -631,6 +758,161 @@ export default function AdminStudentsPage() {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* ─── REVOKE COURSE ACCESS CONFIRMATION MODAL ───────────────────────── */}
+      <Dialog
+        isOpen={revokeModalOpen}
+        onClose={() => setRevokeModalOpen(false)}
+        title="Revoke Course Access?"
+      >
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 space-y-2 text-xs">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">
+                  Are you sure you want to revoke this student&apos;s access to {revokeCourse?.name}?
+                </p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                  The student will no longer be able to access the course content or protected course resources.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+            <p className="font-medium text-slate-900 dark:text-white">
+              Student: {revokeStudent?.displayName || "Learner"} ({revokeStudent?.email})
+            </p>
+            <p className="text-slate-500">
+              Target Course: <span className="font-semibold text-teal-600 dark:text-teal-400">{revokeCourse?.name}</span>
+            </p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+              Note: Access to any other courses enrolled by this student will remain completely unaffected.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="revokeReason" className="text-xs">
+              Revocation Reason (Optional)
+            </Label>
+            <Input
+              id="revokeReason"
+              type="text"
+              placeholder="e.g. Refund processed, batch transfer, or administrative decision"
+              value={revokeReason}
+              onChange={(e) => setRevokeReason(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRevokeModalOpen(false)}
+              disabled={isRevoking}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isRevoking}
+              onClick={handleConfirmRevoke}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs gap-1.5"
+            >
+              {isRevoking ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Revoking Access...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-3.5 w-3.5" />
+                  Confirm Revoke
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* ─── ACCESS AUDIT LOG MODAL ─────────────────────────────────────────── */}
+      <Dialog
+        isOpen={auditModalOpen}
+        onClose={() => setAuditModalOpen(false)}
+        title="Course Access Audit Trail"
+      >
+        <div className="space-y-4 max-h-[70vh] flex flex-col">
+          <p className="text-xs text-slate-500">
+            Immutable audit record of all course access grants and revocations performed by administrators.
+          </p>
+
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {loadingAudits ? (
+              <div className="space-y-2 p-4 text-center">
+                <Loader2 className="h-6 w-6 animate-spin text-teal-500 mx-auto" />
+                <p className="text-xs text-slate-400">Loading audit trail...</p>
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="p-6 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+                No access audit records logged yet.
+              </div>
+            ) : (
+              auditLogs.map((log) => {
+                const isGranted = log.action === "granted";
+                return (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {log.studentName || "Student"}
+                      </span>
+                      <Badge
+                        className={`text-[10px] ${
+                          isGranted
+                            ? "bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/30"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                        }`}
+                      >
+                        {isGranted ? "✓ Access Granted" : "✗ Access Revoked"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-600 dark:text-slate-400">
+                      <span>Email: {log.studentEmail}</span>
+                      <span>•</span>
+                      <span>By: {log.performedByEmail || "Admin"}</span>
+                    </div>
+
+                    {log.reason && (
+                      <p className="text-[11px] text-slate-500 italic">
+                        Reason: {log.reason}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAuditModalOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

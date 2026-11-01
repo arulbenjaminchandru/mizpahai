@@ -433,3 +433,156 @@ export const liveClassApprovalSchema = z.object({
 
 export type LiveClassApprovalData = z.infer<typeof liveClassApprovalSchema>;
 
+// ─── Course Pricing, Brochure & WhatsApp Enquiries ──────────────────────────
+
+/**
+ * Validates whether a URL is a legitimate HTTPS Google Drive sharing URL.
+ */
+export function validateGoogleDriveBrochureUrl(url: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (trimmed.toLowerCase().startsWith("javascript:")) return false;
+  const pattern = /^https:\/\/(?:drive|docs)\.google\.com\/.+/i;
+  return pattern.test(trimmed);
+}
+
+/**
+ * Calculates discount percentage: ((actualPrice - currentPrice) / actualPrice) * 100
+ */
+export function calculateDiscountPercentage(
+  actualPrice: number,
+  currentPrice: number
+): number {
+  if (
+    typeof actualPrice !== "number" ||
+    typeof currentPrice !== "number" ||
+    isNaN(actualPrice) ||
+    isNaN(currentPrice)
+  ) {
+    return 0;
+  }
+  if (actualPrice <= 0 || currentPrice < 0) return 0;
+  if (currentPrice >= actualPrice) return 0;
+  const discount = ((actualPrice - currentPrice) / actualPrice) * 100;
+  return Math.round(discount * 100) / 100;
+}
+
+/**
+ * Formats an amount into standard Indian Rupee (₹) representation.
+ */
+export function formatIndianCurrency(amount: number): string {
+  if (typeof amount !== "number" || isNaN(amount)) return "₹0";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
+ * Generates official pre-filled WhatsApp course purchase enquiry URL.
+ */
+export function generateWhatsAppEnquiryUrl(params: {
+  courseName: string;
+  actualPrice: number;
+  currentPrice: number;
+  discountPercentage: number;
+  studentName: string;
+  studentEmail: string;
+  whatsappNumber?: string;
+}): string {
+  const rawNumber = params.whatsappNumber || "+919894481283";
+  const cleanPhone = rawNumber.replace(/[^0-9]/g, "");
+  const discountStr =
+    params.discountPercentage > 0
+      ? `${params.discountPercentage.toFixed(2)}%`
+      : "0%";
+  const actualStr = formatIndianCurrency(params.actualPrice);
+  const currentStr = formatIndianCurrency(params.currentPrice);
+
+  const message = `Hello Tiben AI Academy!
+
+I am interested in enrolling in the following course.
+
+Course Name: ${params.courseName}
+Actual Price: ${actualStr}
+Current Offer Price: ${currentStr}
+Discount: ${discountStr}
+
+I have submitted a course purchase enquiry through your website.
+I would like to know the available purchase coupon and enrollment procedure.
+
+Registered Name: ${params.studentName}
+Registered Email: ${params.studentEmail}
+
+Please assist me with the next steps.
+
+Thank you!`;
+
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+}
+
+export const coursePricingSchema = z
+  .object({
+    actualPrice: z.number().min(0, "Actual price cannot be negative"),
+    currentPrice: z.number().min(0, "Current price cannot be negative"),
+    currency: z.string().default("INR"),
+    pricingEnabled: z.boolean().default(true),
+  })
+  .refine((data) => data.currentPrice <= data.actualPrice, {
+    message: "Current offer price cannot exceed actual course price",
+    path: ["currentPrice"],
+  });
+
+export type CoursePricingFormData = z.infer<typeof coursePricingSchema>;
+
+export const courseBrochureSchema = z.object({
+  brochureUrl: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === "") return true;
+      return validateGoogleDriveBrochureUrl(val);
+    }, "Must be a valid HTTPS Google Drive URL (e.g. https://drive.google.com/file/d/.../view)"),
+  brochureEnabled: z.boolean().default(false),
+});
+
+export type CourseBrochureFormData = z.infer<typeof courseBrochureSchema>;
+
+export const courseEnquiryCreateSchema = z.object({
+  courseId: z.string().min(1, "Course ID is required"),
+});
+
+export type CourseEnquiryCreateData = z.infer<typeof courseEnquiryCreateSchema>;
+
+export const courseEnquiryAdminUpdateSchema = z.object({
+  status: z
+    .enum([
+      "new",
+      "contacted",
+      "awaiting_payment",
+      "payment_under_verification",
+      "payment_confirmed",
+      "access_granted",
+      "rejected",
+      "cancelled",
+    ])
+    .optional(),
+  adminNotes: z.string().max(2000).optional(),
+  paymentConfirmed: z.boolean().optional(),
+  paymentNotes: z.string().max(1000).optional(),
+});
+
+export type CourseEnquiryAdminUpdateData = z.infer<
+  typeof courseEnquiryAdminUpdateSchema
+>;
+
+export const courseAccessRevokeSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  courseId: z.string().min(1, "Course ID is required"),
+  reason: z.string().max(500).optional(),
+});
+
+export type CourseAccessRevokeData = z.infer<typeof courseAccessRevokeSchema>;
+
+

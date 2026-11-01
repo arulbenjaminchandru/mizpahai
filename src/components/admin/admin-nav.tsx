@@ -10,6 +10,8 @@ import {
   ChevronRight,
   ShieldAlert,
   Video,
+  ShoppingBag,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,9 +41,21 @@ const navItems = [
     exact: false,
   },
   {
+    title: "Purchase Enquiries",
+    href: "/admin/enquiries",
+    icon: ShoppingBag,
+    exact: false,
+  },
+  {
     title: "Enrollment Codes",
     href: "/admin/enrollment-codes",
     icon: KeyRound,
+    exact: false,
+  },
+  {
+    title: "Academy Settings",
+    href: "/admin/settings",
+    icon: Settings,
     exact: false,
   },
 ];
