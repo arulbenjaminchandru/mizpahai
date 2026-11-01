@@ -95,27 +95,17 @@ service cloud.firestore {
 
     // ─── Collection: liveClasses ───────────────────────────────────────────
     match /liveClasses/{classId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     // ─── Collection: liveClassAccess ───────────────────────────────────────
     match /liveClassAccess/{accessId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        (resource != null && resource.data.userId == request.auth.uid)
-      );
-      allow write: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     // ─── Collection: courseEnquiries ───────────────────────────────────────
     match /courseEnquiries/{enquiryId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        (resource != null && resource.data.userId == request.auth.uid)
-      );
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     // ─── Collection: courseAccessAudits ────────────────────────────────────

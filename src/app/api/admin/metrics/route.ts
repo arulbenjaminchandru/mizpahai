@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/server-auth";
 import { getAdminDb } from "@/lib/firebase/admin";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin) {
@@ -58,9 +60,11 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("Metrics fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch metrics", details: error.message },
+      {
+        error: error?.message || "Failed to fetch metrics",
+        code: error?.code,
+      },
       { status: 500 }
     );
   }
 }
-

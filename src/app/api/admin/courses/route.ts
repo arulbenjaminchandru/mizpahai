@@ -4,6 +4,8 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { courseSchema } from "@/lib/validations";
 import { FieldValue } from "firebase-admin/firestore";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const admin = await requireAdmin(req);
@@ -25,7 +27,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ courses });
   } catch (error: any) {
     console.error("Courses list error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      error: error?.message || "Internal server error fetching courses",
+      code: error?.code,
+    }, { status: 500 });
   }
 }
 

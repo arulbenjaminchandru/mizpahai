@@ -5,6 +5,8 @@ import { liveClassSchema } from "@/lib/validations";
 import { FieldValue } from "firebase-admin/firestore";
 import type { LiveClass } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/admin/live-classes
  * Retrieves live classes. Supports filtering by ?courseId=...
@@ -64,7 +66,10 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("Admin live classes GET error:", error);
     return NextResponse.json(
-      { error: "Internal server error fetching live classes" },
+      {
+        error: error?.message || "Internal server error fetching live classes",
+        code: error?.code,
+      },
       { status: 500 }
     );
   }
@@ -116,9 +121,11 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Admin live classes POST error:", error);
     return NextResponse.json(
-      { error: "Internal server error creating live class" },
+      {
+        error: error?.message || "Internal server error creating live class",
+        code: error?.code,
+      },
       { status: 500 }
     );
   }
 }
-

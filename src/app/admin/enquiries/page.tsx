@@ -93,7 +93,9 @@ export default function AdminEnquiriesPage() {
       ]);
 
       if (!enrRes.ok) {
-        throw new Error("Server enquiries API returned non-200");
+        const errJson = await enrRes.json().catch(() => ({}));
+        console.warn("API enquiries non-200 response:", enrRes.status, errJson);
+        throw new Error(errJson?.error || `Server enquiries API returned non-200 (${enrRes.status})`);
       }
       if (enrRes.ok) {
         const data = await enrRes.json();

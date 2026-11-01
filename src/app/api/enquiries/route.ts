@@ -50,7 +50,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ enquiries });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      error: error.message || "Failed to load enquiries",
+      code: error?.code,
+    }, { status: 500 });
   }
 }
 
@@ -190,9 +193,11 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Enquiry creation error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to submit course enquiry" },
+      {
+        error: error.message || "Failed to submit course enquiry",
+        code: error?.code,
+      },
       { status: 400 }
     );
   }
 }
-

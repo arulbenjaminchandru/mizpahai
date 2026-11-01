@@ -126,29 +126,38 @@ export default function AdminLiveClassesPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setClasses(data.classes || []);
+        if (Array.isArray(data.classes)) {
+          setClasses(data.classes);
+          setLoadingClasses(false);
+          return;
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn("API live classes returned non-200:", res.status, errData);
       }
     } catch (err) {
-        console.warn("API live classes fetch error:", err);
+      console.warn("API live classes fetch error:", err);
+    }
+
+    // Direct Firestore fallback
+    try {
+      const snap = await getDocs(collection(db, "liveClasses"));
+      let list: LiveClass[] = snap.docs.map((d) => {
+        const data = d.data();
+        const course = courses.find((c) => c.id === data.courseId);
+        return {
+          id: d.id,
+          ...data,
+          courseName: course?.name || data.courseName || "Course",
+        } as LiveClass;
+      });
+      if (selectedCourseId) {
+        list = list.filter((c) => c.courseId === selectedCourseId);
       }
-      try {
-        const snap = await getDocs(collection(db, "liveClasses"));
-        let list: LiveClass[] = snap.docs.map((d) => {
-          const data = d.data();
-          const course = courses.find((c) => c.id === data.courseId);
-          return {
-            id: d.id,
-            ...data,
-            courseName: course?.name || data.courseName || "Course",
-          } as LiveClass;
-        });
-        if (selectedCourseId) {
-          list = list.filter((c) => c.courseId === selectedCourseId);
-        }
-        list.sort((a, b) => (b.scheduledDate || "").localeCompare(a.scheduledDate || ""));
-        setClasses(list);
-      } catch (clientErr) {
-        console.error("Direct Firestore live classes failed:", clientErr);
+      list.sort((a, b) => (b.scheduledDate || "").localeCompare(a.scheduledDate || ""));
+      setClasses(list);
+    } catch (clientErr: any) {
+      console.error("Direct Firestore live classes failed:", clientErr);
     } finally {
       setLoadingClasses(false);
     }

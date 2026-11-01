@@ -69,7 +69,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ enquiries, metrics });
   } catch (error: any) {
     console.error("Admin enquiries fetch error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      error: error?.message || "Internal server error fetching enquiries",
+      code: error?.code,
+    }, { status: 500 });
   }
 }
-
