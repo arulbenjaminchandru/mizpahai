@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -31,10 +30,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased dark" suppressHydrationWarning>
-      <head suppressHydrationWarning>
-        <Script
-          id="theme-initializer"
-          strategy="beforeInteractive"
+      <head>
+        <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               try {
@@ -51,10 +49,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body
-        className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 font-sans selection:bg-[#0D9488] selection:text-white transition-colors duration-200"
-        suppressHydrationWarning
-      >
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-[#071527] dark:text-slate-100 font-sans selection:bg-[#0D9488] selection:text-white transition-colors duration-200">
         <Providers>{children}</Providers>
       </body>
     </html>
