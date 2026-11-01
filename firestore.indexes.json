@@ -55,6 +55,22 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "courseId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "liveClasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "liveClassAccess",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

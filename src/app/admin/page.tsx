@@ -62,44 +62,78 @@ export default function AdminOverviewPage() {
     async function fetchMetrics() {
       if (!user) return;
       try {
-        const [usersSnap, enrollSnap, coursesSnap, lessonsSnap, liveSnap] =
-          await Promise.all([
-            getDocs(collection(db, "users")),
-            getDocs(collection(db, "enrollments")),
-            getDocs(collection(db, "courses")),
-            getDocs(collection(db, "lessons")),
-            getDocs(collection(db, "liveClasses")),
-          ]);
+        // Priority 1: Fetch via authenticated server API route
+        const token = await user.getIdToken();
+        const res = await fetch("/api/admin/metrics", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setMetrics({
+            totalStudents: data.totalStudents ?? 0,
+            activeEnrollments: data.activeEnrollments ?? 0,
+            totalCourses: data.totalCourses ?? 0,
+            totalLessons: data.totalLessons ?? 0,
+            totalCompletions: data.totalCompletions ?? 0,
+            totalLiveClasses: data.totalLiveClasses ?? 0,
+            usersWithPhone: data.usersWithPhone ?? 0,
+            usersMissingPhone: data.usersMissingPhone ?? 0,
+            profileCompletionRate: data.profileCompletionRate ?? 0,
+          });
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("API metrics fetch failed, falling back to direct Firestore:", apiErr);
+      }
+
+      // Priority 2: Direct client-side Firestore fallback using Promise.allSettled
+      try {
+        const results = await Promise.allSettled([
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "enrollments")),
+          getDocs(collection(db, "courses")),
+          getDocs(collection(db, "lessons")),
+          getDocs(collection(db, "liveClasses")),
+        ]);
+
+        const usersSnap = results[0].status === "fulfilled" ? results[0].value : null;
+        const enrollSnap = results[1].status === "fulfilled" ? results[1].value : null;
+        const coursesSnap = results[2].status === "fulfilled" ? results[2].value : null;
+        const lessonsSnap = results[3].status === "fulfilled" ? results[3].value : null;
+        const liveSnap = results[4].status === "fulfilled" ? results[4].value : null;
 
         let withPhone = 0;
         let missingPhone = 0;
 
-        usersSnap.docs.forEach((d) => {
-          const data = d.data();
-          if (data.phoneNumber && data.phoneNumber.trim().length > 0) {
-            withPhone++;
-          } else {
-            missingPhone++;
-          }
-        });
+        if (usersSnap) {
+          usersSnap.docs.forEach((d) => {
+            const data = d.data();
+            if (data.phoneNumber && data.phoneNumber.trim().length > 0) {
+              withPhone++;
+            } else {
+              missingPhone++;
+            }
+          });
+        }
 
-        const totalStudents = usersSnap.size;
+        const totalStudents = usersSnap ? usersSnap.size : 0;
         const completionRate =
           totalStudents > 0 ? Math.round((withPhone / totalStudents) * 100) : 0;
 
-        setMetrics({
-          totalStudents,
-          activeEnrollments: enrollSnap.size,
-          totalCourses: coursesSnap.size,
-          totalLessons: lessonsSnap.size,
-          totalCompletions: 0,
-          totalLiveClasses: liveSnap.size,
-          usersWithPhone: withPhone,
-          usersMissingPhone: missingPhone,
-          profileCompletionRate: completionRate,
-        });
+        setMetrics((prev) => ({
+          totalStudents: totalStudents || prev.totalStudents,
+          activeEnrollments: enrollSnap ? enrollSnap.size : prev.activeEnrollments,
+          totalCourses: coursesSnap ? coursesSnap.size : prev.totalCourses,
+          totalLessons: lessonsSnap ? lessonsSnap.size : prev.totalLessons,
+          totalCompletions: prev.totalCompletions,
+          totalLiveClasses: liveSnap ? liveSnap.size : prev.totalLiveClasses,
+          usersWithPhone: withPhone || prev.usersWithPhone,
+          usersMissingPhone: missingPhone || prev.usersMissingPhone,
+          profileCompletionRate: completionRate || prev.profileCompletionRate,
+        }));
       } catch (err) {
-        console.error("Error fetching metrics:", err);
+        console.error("Error in fallback metrics:", err);
       } finally {
         setLoading(false);
       }

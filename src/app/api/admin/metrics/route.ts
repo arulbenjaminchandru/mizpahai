@@ -11,22 +11,49 @@ export async function GET(req: NextRequest) {
   try {
     const db = getAdminDb();
 
-    // Query counts in parallel
-    const [usersSnap, enrollmentsSnap, coursesSnap, lessonsSnap, progressSnap] =
-      await Promise.all([
-        db.collection("users").count().get(),
-        db.collection("enrollments").count().get(),
-        db.collection("courses").count().get(),
-        db.collection("lessons").count().get(),
-        db.collection("lessonProgress").where("completed", "==", true).count().get(),
-      ]);
+    // Query counts & documents in parallel
+    const [
+      usersSnap,
+      enrollmentsSnap,
+      coursesSnap,
+      lessonsSnap,
+      liveClassesSnap,
+      progressSnap,
+    ] = await Promise.all([
+      db.collection("users").get(),
+      db.collection("enrollments").count().get(),
+      db.collection("courses").count().get(),
+      db.collection("lessons").count().get(),
+      db.collection("liveClasses").count().get(),
+      db.collection("lessonProgress").where("completed", "==", true).count().get(),
+    ]);
+
+    let usersWithPhone = 0;
+    let usersMissingPhone = 0;
+
+    usersSnap.docs.forEach((doc) => {
+      const data = doc.data();
+      if (data.phoneNumber && String(data.phoneNumber).trim().length > 0) {
+        usersWithPhone++;
+      } else {
+        usersMissingPhone++;
+      }
+    });
+
+    const totalStudents = usersSnap.size;
+    const profileCompletionRate =
+      totalStudents > 0 ? Math.round((usersWithPhone / totalStudents) * 100) : 0;
 
     return NextResponse.json({
-      totalStudents: usersSnap.data().count,
+      totalStudents,
       activeEnrollments: enrollmentsSnap.data().count,
       totalCourses: coursesSnap.data().count,
       totalLessons: lessonsSnap.data().count,
+      totalLiveClasses: liveClassesSnap.data().count,
       totalCompletions: progressSnap.data().count,
+      usersWithPhone,
+      usersMissingPhone,
+      profileCompletionRate,
     });
   } catch (error: any) {
     console.error("Metrics fetch error:", error);

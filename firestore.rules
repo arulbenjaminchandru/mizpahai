@@ -16,7 +16,9 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.role == 'admin' ||
-        request.auth.token.admin == true
+        request.auth.token.admin == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
 
@@ -89,6 +91,21 @@ service cloud.firestore {
     match /lessonProgress/{progressId} {
       allow read, create, update: if isSignedIn();
       allow delete: if isAdmin();
+    }
+
+    // ─── Collection: liveClasses ───────────────────────────────────────────
+    match /liveClasses/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ─── Collection: liveClassAccess ───────────────────────────────────────
+    match /liveClassAccess/{accessId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+      allow write: if isAdmin();
     }
 
     // ─── Deny All Other Unmatched Paths ────────────────────────────────────
