@@ -91,11 +91,11 @@ export async function GET(req: NextRequest) {
         .collection("liveClasses")
         .where("courseId", "==", cId)
         .where("isActive", "==", true)
-        .where("isPublished", "==", true)
         .get();
 
       liveSnap.docs.forEach((doc) => {
         const data = doc.data();
+        if (data.isPublished === false) return; // skip explicit draft
         authorizedClasses.push({
           id: doc.id,
           courseId: data.courseId,
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
           startTime: data.startTime,
           endTime: data.endTime || "",
           isActive: data.isActive,
-          isPublished: data.isPublished,
+          isPublished: data.isPublished ?? true,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         });

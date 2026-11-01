@@ -1,12 +1,12 @@
 # TiBen AI Academy — Comprehensive Quality Assurance & Scalability Audit
 
-**Execution Date:** 2026-11-01T13:20:57.861Z  
+**Execution Date:** 2026-11-01T13:41:52.045Z  
 **Platform Version:** 1.0.0 (Production Candidate)  
 **Total Test Cases:** 100  
 **Passed:** 100  
 **Failed:** 0  
 **Success Rate:** 100.0%  
-**Execution Runtime:** 13ms  
+**Execution Runtime:** 11ms  
 **Audit Purpose:** Pre-launch Brand Reputation & Zero-Gap Quality Verification (Target Cohort: Nov 2026 – Apr 2027)
 
 ---
@@ -69,8 +69,8 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | extracts 11-char ID from standard watch URL | 0ms |
 | ✅ PASS | extracts 11-char ID from watch URL with tracking params | 0ms |
 | ✅ PASS | extracts 11-char ID from short youtu.be URL | 0ms |
-| ✅ PASS | extracts 11-char ID from embed URL | 0ms |
-| ✅ PASS | extracts 11-char ID from live broadcast URL | 1ms |
+| ✅ PASS | extracts 11-char ID from embed URL | 1ms |
+| ✅ PASS | extracts 11-char ID from live broadcast URL | 0ms |
 | ✅ PASS | extracts 11-char ID from mobile m.youtube.com URL | 0ms |
 | ✅ PASS | accepts clean 11-character video ID directly | 0ms |
 | ✅ PASS | rejects spoofed / phishing domains attempting to impersonate YouTube | 0ms |
@@ -82,7 +82,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
 | ✅ PASS | validates Google Drive shared file link | 0ms |
-| ✅ PASS | validates Google Drive folder link | 0ms |
+| ✅ PASS | validates Google Drive folder link | 1ms |
 | ✅ PASS | validates Google Slides presentation link | 0ms |
 | ✅ PASS | validates Google Docs document link | 0ms |
 | ✅ PASS | validates Google Sheets spreadsheet link | 0ms |
@@ -114,7 +114,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | ✅ PASS | prevents replay attacks: same student cannot redeem code twice | 0ms |
 | ✅ PASS | gracefully detects when a student is already enrolled in the course | 0ms |
 | ✅ PASS | computes standard composite document IDs deterministically | 0ms |
-| ✅ PASS | inherits batch name from code to enrollment record | 1ms |
+| ✅ PASS | inherits batch name from code to enrollment record | 0ms |
 
 ### 6. Classroom Data Hierarchy & Progress Tracking
 
@@ -122,7 +122,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | :---: | :--- | :---: |
 | ✅ PASS | computes dynamic completion percentages accurately | 0ms |
 | ✅ PASS | handles zero lessons gracefully without divide-by-zero NaN errors | 0ms |
-| ✅ PASS | filters draft / unpublished lessons for student visibility | 1ms |
+| ✅ PASS | filters draft / unpublished lessons for student visibility | 0ms |
 | ✅ PASS | provides full access to all lessons for administrators | 0ms |
 | ✅ PASS | sorts curriculum chronologically by week and order index | 0ms |
 | ✅ PASS | selects next incomplete lesson intelligently | 0ms |
@@ -134,7 +134,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | :---: | :--- | :---: |
 | ✅ PASS | safely handles valid JSON payload strings | 0ms |
 | ✅ PASS | safely handles empty responses (HTTP 500 zero-byte bodies) without throwing | 0ms |
-| ✅ PASS | safely handles HTML error bodies from gateway timeouts without throwing | 1ms |
+| ✅ PASS | safely handles HTML error bodies from gateway timeouts without throwing | 0ms |
 | ✅ PASS | handles null resource checking in security rules without null pointer exceptions | 0ms |
 
 ### 8. Brand Reputation & Communications Security
@@ -184,7 +184,7 @@ This enterprise-grade test suite validates the entire architecture of **TiBen AI
 | Result | Test Scenario Description | Execution Latency |
 | :---: | :--- | :---: |
 | ✅ PASS | sanitizes leading '=' formula injection payload to prevent arbitrary code execution | 0ms |
-| ✅ PASS | sanitizes leading '+' formula injection payload | 1ms |
+| ✅ PASS | sanitizes leading '+' formula injection payload | 0ms |
 | ✅ PASS | sanitizes leading '-' formula injection payload | 0ms |
 | ✅ PASS | sanitizes leading '@' formula injection payload | 0ms |
 | ✅ PASS | preserves safe alphanumeric values and emails without prefixing quote | 0ms |

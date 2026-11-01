@@ -43,6 +43,7 @@ export default function StudentDashboardPage() {
   const [progressMap, setProgressMap] = useState<Record<string, boolean>>({});
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [unapprovedCourses, setUnapprovedCourses] = useState<{ courseId: string; courseName: string }[]>([]);
+  const [approvedCourseCount, setApprovedCourseCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [loadingLiveClasses, setLoadingLiveClasses] = useState(true);
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
@@ -132,6 +133,7 @@ export default function StudentDashboardPage() {
           const data = await res.json();
           setLiveClasses(data.classes || []);
           setUnapprovedCourses(data.unapprovedCourses || []);
+          setApprovedCourseCount(data.approvedCourseCount || 0);
         }
       } catch (err) {
         console.error("Error loading live classes:", err);
@@ -396,6 +398,16 @@ export default function StudentDashboardPage() {
                   </Card>
                 ))}
               </div>
+            ) : approvedCourseCount > 0 ? (
+              <Card className="border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20 p-6 text-center space-y-2">
+                <CheckCircle2 className="h-8 w-8 text-teal-500 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Live-Class Access Approved
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                  Your seat is verified! Weekend cohort sessions and interactive meeting links will appear here ahead of your scheduled live class.
+                </p>
+              </Card>
             ) : unapprovedCourses.length > 0 ? (
               <Card className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-6 text-center space-y-2">
                 <AlertCircle className="h-8 w-8 text-amber-500 mx-auto" />
